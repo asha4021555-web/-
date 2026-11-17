@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:adhan/adhan.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
@@ -72,6 +73,62 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama) async {
         );
       }
     }
+  }
+}
+
+
+class PrayerHomeSummary extends StatefulWidget {
+  const PrayerHomeSummary({super.key});
+  @override State<PrayerHomeSummary> createState()=>_PrayerHomeSummaryState();
+}
+class _PrayerHomeSummaryState extends State<PrayerHomeSummary> {
+  Position? position;
+  bool loading=true;
+  String? error;
+  DateTime now=DateTime.now();
+  Timer? ticker;
+  @override void initState(){super.initState();_load();ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>now=DateTime.now());});}
+  Future<void> _load() async {
+    try {
+      final p=await _getPosition();
+      if(!mounted)return;
+      setState(()=>position=p);
+    } catch(e) {
+      if(!mounted)return;
+      setState(()=>error=e.toString().replaceFirst('Exception: ',''));
+    } finally {if(mounted)setState(()=>loading=false);}
+  }
+  @override void dispose(){ticker?.cancel();super.dispose();}
+  @override Widget build(BuildContext context){
+    final p=position;
+    final coordinates=p==null?null:Coordinates(p.latitude,p.longitude);
+    final today=coordinates==null?null:PrayerTimes.today(coordinates,CalculationMethod.egyptian.getParameters()..madhab=Madhab.shafi);
+    final rows=today==null?<MapEntry<String,DateTime>>[]:[
+      MapEntry('الفجر',today.fajr),MapEntry('الشروق',today.sunrise),MapEntry('الظهر',today.dhuhr),MapEntry('العصر',today.asr),MapEntry('المغرب',today.maghrib),MapEntry('العشاء',today.isha)
+    ];
+    MapEntry<String,DateTime>? next;
+    for(final row in rows){if(row.value.isAfter(now)){next=row;break;}}
+    next ??= coordinates==null?null:MapEntry('الفجر',_getTime(coordinates,DateTime(now.year,now.month,now.day+1),Prayer.fajr));
+    final remaining=next==null?null:next.value.difference(now);
+    String countdown(Duration d){final h=d.inHours.toString().padLeft(2,'0');final m=(d.inMinutes%60).toString().padLeft(2,'0');final s=(d.inSeconds%60).toString().padLeft(2,'0');return '\$h:\$m:\$s';}
+    return Card(color:Colors.white,child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      const Text('مواقيت الصلاة اليوم',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:_green)),
+      const SizedBox(height:8),
+      if(loading) const Center(child:Padding(padding:EdgeInsets.all(12),child:CircularProgressIndicator())),
+      if(error!=null) Text(error!,style:const TextStyle(color:Colors.red)),
+      if(rows.isNotEmpty) Wrap(alignment:WrapAlignment.spaceBetween,runSpacing:10,children:[
+        for(final row in rows) SizedBox(width:MediaQuery.of(context).size.width/3.8,child:Column(children:[
+          Text(row.key,style:const TextStyle(color:Colors.black54,fontSize:13)),
+          Text(_timeText(row.value),style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:_green)),
+        ])),
+      ]),
+      if(next!=null&&remaining!=null) Container(margin:const EdgeInsets.only(top:14),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:_green.withValues(alpha:.08),borderRadius:BorderRadius.circular(14)),child:Column(children:[
+        Text('الصلاة القادمة: \${next.key}',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:17,color:_green)),
+        const SizedBox(height:4),const Text('متبقي على الصلاة',style:TextStyle(color:Colors.black54)),
+        Text(countdown(remaining.isNegative?Duration.zero:remaining),style:const TextStyle(fontSize:30,fontWeight:FontWeight.bold,color:_green,letterSpacing:2)),
+      ])),
+      if(p==null) Align(alignment:Alignment.centerLeft,child:TextButton.icon(onPressed:loading?null:_load,icon:const Icon(Icons.my_location),label:const Text('تحديد موقعي لعرض المواقيت'))),
+    ])));
   }
 }
 
