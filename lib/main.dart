@@ -161,7 +161,35 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
   ])));
 }
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),_=>const DreamsPage()}));}
-class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=quranSurahNames;static const surahAyahCounts=quranAyahCounts;@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
+class QuranPage extends StatelessWidget {
+  const QuranPage({super.key});
+  static const surahs = quranSurahNames;
+  static const surahAyahCounts = quranAyahCounts;
+
+  @override
+  Widget build(BuildContext context) => ListView.separated(
+    padding: const EdgeInsets.all(12),
+    itemCount: surahs.length,
+    separatorBuilder: (_, __) => const Divider(height: 1),
+    itemBuilder: (context, i) => ListTile(
+      leading: CircleAvatar(child: Text('${i + 1}')),
+      title: Text('سورة ${surahs[i]}'),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          tooltip: 'قراءة متتابعة بالتمرير التلقائي',
+          icon: const Icon(Icons.vertical_align_bottom, color: green),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => ContinuousQuranReader(number: i + 1, name: surahs[i]),
+          )),
+        ),
+        const Icon(Icons.chevron_left),
+      ]),
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => SurahReader(number: i + 1, name: surahs[i]),
+      )),
+    ),
+  );
+}
 
 class SurahReader extends StatefulWidget {
   final int number;
@@ -318,6 +346,213 @@ class _SurahReaderState extends State<SurahReader> {
       ),
     );
   }
+}
+
+class ContinuousQuranReader extends StatefulWidget {
+  final int number;
+  final String name;
+  const ContinuousQuranReader({super.key, required this.number, required this.name});
+
+  @override
+  State<ContinuousQuranReader> createState() => _ContinuousQuranReaderState();
+}
+
+class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
+  final ScrollController _scrollController = ScrollController();
+  Timer? _scrollTimer;
+  bool _scrolling = false;
+  double _speed = 24;
+  late Future<_ContinuousReaderData> _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _data = _loadData();
+  }
+
+  Future<_ContinuousReaderData> _loadData() async {
+    final text = await rootBundle.loadString('assets/quran-uthmani.txt');
+    final ayahs = text.split('\n');
+    if (ayahs.length != 6236) {
+      throw Exception('ملف القرآن غير مكتمل: ${ayahs.length} آية');
+    }
+    final rawPages = await rootBundle.loadString('assets/quran-pages.json');
+    final pageEntries = jsonDecode(rawPages) as List<dynamic>;
+    if (pageEntries.length != 604) {
+      throw Exception('بيانات صفحات المصحف غير مكتملة.');
+    }
+    final pageStarts = <String, int>{};
+    for (final item in pageEntries) {
+      final entry = item as Map<String, dynamic>;
+      pageStarts['${entry['sura']}:${entry['aya']}'] = entry['page'] as int;
+    }
+    final start = QuranPage.surahAyahCounts
+        .take(widget.number - 1)
+        .fold<int>(0, (sum, count) => sum + count);
+    final count = QuranPage.surahAyahCounts[widget.number - 1];
+    final items = List.generate(count, (index) => {
+      'text': ayahs[start + index],
+      'numberInSurah': index + 1,
+    });
+    return _ContinuousReaderData(items, pageStarts);
+  }
+
+  void _startScrolling() {
+    if (_scrolling || !_scrollController.hasClients) return;
+    setState(() => _scrolling = true);
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      if (position.pixels >= position.maxScrollExtent - 1) {
+        _stopScrolling();
+        return;
+      }
+      final next = (position.pixels + _speed * 0.05).clamp(0.0, position.maxScrollExtent);
+      _scrollController.jumpTo(next);
+    });
+  }
+
+  void _stopScrolling() {
+    _scrollTimer?.cancel();
+    _scrollTimer = null;
+    if (mounted && _scrolling) setState(() => _scrolling = false);
+  }
+
+  @override
+  void dispose() {
+    _scrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('قراءة متتابعة - ${widget.name}'),
+          backgroundColor: green,
+          foregroundColor: Colors.white,
+        ),
+        body: FutureBuilder<_ContinuousReaderData>(
+          future: _data,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('تعذر تحميل القراءة المتتابعة: ${snapshot.error}'));
+            }
+            final data = snapshot.data!;
+            final items = data.ayahs;
+            final children = <Widget>[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: green, borderRadius: BorderRadius.circular(14)),
+                child: Column(children: [
+                  Text('سُورَةُ ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  const Text('وضع مستقل عن المصحف الأصلي • تمرير مستمر بين الصفحات', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ]),
+              ),
+            ];
+            var currentPage = data.pageStarts['${widget.number}:1'] ?? 1;
+            for (final ayah in items) {
+              final verseNumber = ayah['numberInSurah'] as int;
+              final page = data.pageStarts['${widget.number}:${verseNumber}'];
+              if (page != null && page != currentPage) {
+                children.add(Container(
+                  margin: const EdgeInsets.symmetric(vertical: 18),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: green.withValues(alpha: 0.07),
+                    border: Border.symmetric(horizontal: BorderSide(color: green.withValues(alpha: 0.35), width: 1)),
+                  ),
+                  child: Row(children: [
+                    const Expanded(child: Divider(color: green)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('نهاية الصفحة ${currentPage}  •  الصفحة ${page}', style: const TextStyle(color: green, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                    const Expanded(child: Divider(color: green)),
+                  ]),
+                ));
+                currentPage = page;
+              }
+              children.add(Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: ayah['text'] as String),
+                    const TextSpan(text: '  '),
+                    WidgetSpan(alignment: PlaceholderAlignment.middle, child: Container(
+                      width: 27, height: 27, alignment: Alignment.center,
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: green)),
+                      child: Text(verseNumber.toString(), style: const TextStyle(color: green, fontSize: 11)),
+                    )),
+                  ]),
+                  textAlign: TextAlign.justify,
+                  style: const TextStyle(fontSize: 25, height: 2.15, color: Colors.black87),
+                ),
+              ));
+            }
+            return Column(children: [
+              Expanded(child: ListView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+                children: children,
+              )),
+              Material(
+                elevation: 8,
+                color: Colors.white,
+                child: SafeArea(top: false, child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Row(children: [
+                      const Text('سرعة التمرير', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Expanded(child: Slider(
+                        value: _speed, min: 8, max: 70, divisions: 31,
+                        label: '${_speed.round()}',
+                        activeColor: green,
+                        onChanged: (value) => setState(() => _speed = value),
+                      )),
+                      Text('${_speed.round()}'),
+                    ]),
+                    Row(children: [
+                      Expanded(child: FilledButton.icon(
+                        onPressed: _scrolling ? _stopScrolling : _startScrolling,
+                        icon: Icon(_scrolling ? Icons.pause : Icons.play_arrow),
+                        label: Text(_scrolling ? 'إيقاف مؤقت' : 'ابدأ التمرير التلقائي'),
+                        style: FilledButton.styleFrom(backgroundColor: green),
+                      )),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'العودة إلى بداية السورة',
+                        onPressed: () {
+                          _stopScrolling();
+                          if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+                        },
+                        icon: const Icon(Icons.vertical_align_top, color: green),
+                      ),
+                    ]),
+                  ]),
+                )),
+              ),
+            ]);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ContinuousReaderData {
+  final List<Map<String, dynamic>> ayahs;
+  final Map<String, int> pageStarts;
+  const _ContinuousReaderData(this.ayahs, this.pageStarts);
 }
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
