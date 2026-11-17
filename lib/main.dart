@@ -15,10 +15,59 @@ class _SurahReaderState extends State<SurahReader>{late Future<List<dynamic>> ve
 @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text('سورة ${widget.name}'),backgroundColor:green,foregroundColor:Colors.white),body:FutureBuilder<List<dynamic>>(future:verses,builder:(context,snapshot){if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:Column(mainAxisSize:MainAxisSize.min,children:[CircularProgressIndicator(),SizedBox(height:14),Text('جارٍ تحميل آيات السورة...')]));if(snapshot.hasError)return Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.wifi_off,size:48,color:green),const SizedBox(height:12),const Text('لم نتمكن من تحميل السورة. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',textAlign:TextAlign.center),const SizedBox(height:14),FilledButton(onPressed:()=>setState(()=>verses=loadVerses()),child:const Text('إعادة المحاولة'))])));final items=snapshot.data!;return ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:green,borderRadius:BorderRadius.circular(16)),child:Text('سُورَةُ ${widget.name}',textAlign:TextAlign.center,style:const TextStyle(color:Colors.white,fontSize:25,fontWeight:FontWeight.bold))),const SizedBox(height:14),Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16)),child:Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:7,runSpacing:12,children:[for(final ayah in items)...[Text(ayah['text'] as String,style:const TextStyle(fontSize:25,height:2.0,color:Color(0xFF202820)),textAlign:TextAlign.center),Container(width:34,height:34,alignment:Alignment.center,decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:green)),child:Text(ayah['numberInSurah'].toString(),style:const TextStyle(color:green,fontSize:13,fontWeight:FontWeight.bold)))]]))]);})));}}
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
-const morning=[Dh('أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ.',1),Dh('اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ.',1),Dh('سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.',100),Dh('أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.',100),Dh('اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ.',10)];
+const ayatKursi='اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَنْ ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ';
+const ikhlas='قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ';
+const falaq='قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِنْ شَرِّ مَا خَلَقَ ۝ وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ';
+const nas='قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ';
+const sayyid='اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَٰهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.';
+const commonMorningEvening=[
+ Dh(ayatKursi,1),
+ Dh('سورة الإخلاص: '+ikhlas,3),
+ Dh('سورة الفلق: '+falaq,3),
+ Dh('سورة الناس: '+nas,3),
+ Dh(sayyid,1),
+ Dh('بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.',3),
+ Dh('رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.',3),
+ Dh('سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.',100),
+];
+const morning=[
+ ...commonMorningEvening,
+ Dh('أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذَا الْيَوْمِ وَخَيْرَ مَا بَعْدَهُ، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذَا الْيَوْمِ وَشَرِّ مَا بَعْدَهُ، رَبِّ أَعُوذُ بِكَ مِنَ الْكَسَلِ وَسُوءِ الْكِبَرِ، رَبِّ أَعُوذُ بِكَ مِنْ عَذَابٍ فِي النَّارِ وَعَذَابٍ فِي الْقَبْرِ.',1),
+ Dh('اللَّهُمَّ بِكَ أَصْبَحْنَا، وَبِكَ أَمْسَيْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ النُّشُورُ.',1),
+ Dh('اللَّهُمَّ إِنِّي أَصْبَحْتُ أُشْهِدُكَ، وَأُشْهِدُ حَمَلَةَ عَرْشِكَ، وَمَلَائِكَتَكَ، وَجَمِيعَ خَلْقِكَ، أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، وَأَنَّ مُحَمَّدًا عَبْدُكَ وَرَسُولُكَ.',1),
+];
+const evening=[
+ ...commonMorningEvening,
+ Dh('أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذِهِ اللَّيْلَةِ وَخَيْرَ مَا بَعْدَهَا، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذِهِ اللَّيْلَةِ وَشَرِّ مَا بَعْدَهَا، رَبِّ أَعُوذُ بِكَ مِنَ الْكَسَلِ وَسُوءِ الْكِبَرِ، رَبِّ أَعُوذُ بِكَ مِنْ عَذَابٍ فِي النَّارِ وَعَذَابٍ فِي الْقَبْرِ.',1),
+ Dh('اللَّهُمَّ بِكَ أَمْسَيْنَا، وَبِكَ أَصْبَحْنَا، وَبِكَ نَحْيَا، وَبِكَ نَمُوتُ، وَإِلَيْكَ الْمَصِيرُ.',1),
+ Dh('أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ.',3),
+];
 const after=[Dh('أَسْتَغْفِرُ اللَّهَ.',3),Dh('اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ.',1),Dh('سُبْحَانَ اللَّهِ.',33),Dh('الْحَمْدُ لِلَّهِ.',33),Dh('اللَّهُ أَكْبَرُ.',33)];
 class DhikrPage extends StatefulWidget{final bool after;const DhikrPage({super.key,required this.after});@override State<DhikrPage> createState()=>_DhikrState();}
-class _DhikrState extends State<DhikrPage>{late final data=widget.after?after:morning;late final counts=List<int>.filled(data.length,0);@override Widget build(BuildContext c)=>ListView.builder(padding:const EdgeInsets.all(12),itemCount:data.length,itemBuilder:(c,i){final d=data[i];final done=counts[i]>=d.n;return Card(margin:const EdgeInsets.only(bottom:12),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(d.t,textAlign:TextAlign.center,style:const TextStyle(fontSize:19,height:1.8)),Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('المطلوب: ${d.n}'),Text('${counts[i]} / ${d.n}'),TextButton(onPressed:()=>setState(()=>counts[i]=0),child:const Text('إعادة'))]),LinearProgressIndicator(value:(counts[i]/d.n).clamp(0,1),color:green),const SizedBox(height:8),FilledButton(onPressed:done?null:()=>setState(()=>counts[i]++),child:Text(done?'اكتمل الذكر':'اضغط للتسبيح'))])));});}
+class _DhikrState extends State<DhikrPage>{
+ bool isEvening=false;
+ List<int> counts=[];
+ List<Dh> get data=>widget.after?after:(isEvening?evening:morning);
+ @override void initState(){super.initState();counts=List<int>.filled(data.length,0);}
+ void changePeriod(bool value){setState((){isEvening=value;counts=List<int>.filled(data.length,0);});}
+ @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.all(12),children:[
+  if(!widget.after)Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[
+   Expanded(child:ChoiceChip(label:const Center(child:Text('أذكار الصباح')),selected:!isEvening,onSelected:(_)=>changePeriod(false))),
+   const SizedBox(width:8),
+   Expanded(child:ChoiceChip(label:const Center(child:Text('أذكار المساء')),selected:isEvening,onSelected:(_)=>changePeriod(true))),
+  ])),
+  for(int i=0;i<data.length;i++)Builder(builder:(context){
+   final d=data[i];final done=counts[i]>=d.n;
+   return Card(margin:const EdgeInsets.only(bottom:12),child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    Text(d.t,textAlign:TextAlign.center,style:const TextStyle(fontSize:19,height:1.9)),
+    Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('المطلوب: ${d.n}'),Text('${counts[i]} / ${d.n}'),TextButton(onPressed:()=>setState(()=>counts[i]=0),child:const Text('إعادة'))]),
+    LinearProgressIndicator(value:(counts[i]/d.n).clamp(0,1),color:green),
+    const SizedBox(height:8),
+    FilledButton(onPressed:done?null:()=>setState(()=>counts[i]++),child:Text(done?'اكتمل الذكر':'اضغط للتسبيح')),
+   ])));
+  }),
+ ]);
+}
 class TasbeehPage extends StatefulWidget{const TasbeehPage({super.key});@override State<TasbeehPage> createState()=>_TasbeehState();}
 class _TasbeehState extends State<TasbeehPage>{int count=0,target=33;String phrase='سبحان الله';@override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[DropdownButton<String>(value:phrase,isExpanded:true,items:const [DropdownMenuItem(value:'سبحان الله',child:Text('سبحان الله')),DropdownMenuItem(value:'الحمد لله',child:Text('الحمد لله')),DropdownMenuItem(value:'الله أكبر',child:Text('الله أكبر')),DropdownMenuItem(value:'أستغفر الله',child:Text('أستغفر الله')),DropdownMenuItem(value:'لا إله إلا الله',child:Text('لا إله إلا الله'))],onChanged:(v){setState((){phrase=v!;count=0;});}),Text(phrase,style:const TextStyle(fontSize:23,color:green)),Text('${count}',style:const TextStyle(fontSize:64,color:green,fontWeight:FontWeight.bold)),Text('الهدف: ${target==0?'مفتوح':target}'),Wrap(spacing:8,children:[ChoiceChip(label:const Text('33'),selected:target==33,onSelected:(_)=>setState(()=>target=33)),ChoiceChip(label:const Text('100'),selected:target==100,onSelected:(_)=>setState(()=>target=100)),ChoiceChip(label:const Text('مفتوح'),selected:target==0,onSelected:(_)=>setState(()=>target=0))]),const SizedBox(height:16),SizedBox(width:180,height:180,child:FilledButton(style:FilledButton.styleFrom(shape:const CircleBorder(),backgroundColor:green),onPressed:()=>setState(()=>count++),child:const Text('تسبيح',style:TextStyle(fontSize:28)))),TextButton(onPressed:()=>setState(()=>count=0),child:const Text('تصفير العداد')),if(target>0&&count>=target)const Text('أحسنت، وصلت للهدف!',style:TextStyle(color:green))])));}
 class Entry{final String title,body;const Entry(this.title,this.body);}
