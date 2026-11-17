@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -382,9 +384,18 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
       throw Exception('بيانات صفحات المصحف غير مكتملة.');
     }
     final pageStarts = <String, int>{};
+    var initialPage = 1;
     for (final item in pageEntries) {
       final entry = item as Map<String, dynamic>;
-      pageStarts['${entry['sura']}:${entry['aya']}'] = entry['page'] as int;
+      final sura = entry['sura'] as int;
+      final aya = entry['aya'] as int;
+      final page = entry['page'] as int;
+      pageStarts['$sura:$aya'] = page;
+      if (sura < widget.number || (sura == widget.number && aya <= 1)) {
+        initialPage = page;
+      } else {
+        break;
+      }
     }
     final start = QuranPage.surahAyahCounts
         .take(widget.number - 1)
@@ -394,7 +405,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
       'text': ayahs[start + index],
       'numberInSurah': index + 1,
     });
-    return _ContinuousReaderData(items, pageStarts);
+    return _ContinuousReaderData(items, pageStarts, initialPage);
   }
 
   void _startScrolling() {
@@ -456,10 +467,12 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   Text('سُورَةُ ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   const Text('وضع مستقل عن المصحف الأصلي • تمرير مستمر بين الصفحات', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('بداية السورة في الصفحة $currentPage', style: const TextStyle(color: Colors.white70, fontSize: 11)),
                 ]),
               ),
             ];
-            var currentPage = data.pageStarts['${widget.number}:1'] ?? 1;
+            var currentPage = data.initialPage;
             for (final ayah in items) {
               final verseNumber = ayah['numberInSurah'] as int;
               final page = data.pageStarts['${widget.number}:${verseNumber}'];
@@ -552,7 +565,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
 class _ContinuousReaderData {
   final List<Map<String, dynamic>> ayahs;
   final Map<String, int> pageStarts;
-  const _ContinuousReaderData(this.ayahs, this.pageStarts);
+  final int initialPage;
+  const _ContinuousReaderData(this.ayahs, this.pageStarts, this.initialPage);
 }
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
