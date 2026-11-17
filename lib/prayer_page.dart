@@ -1,4 +1,9 @@
+import 'dart:io';
 import 'package:adhan/adhan.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
@@ -29,7 +34,9 @@ Future<void> _initAlerts() async {
 
 DateTime _getTime(Coordinates c, DateTime d, Prayer prayer) {
   final params = CalculationMethod.egyptian.getParameters()..madhab = Madhab.shafi;
-  return PrayerTimes(c, DateComponents(d.year, d.month, d.day), params).timeForPrayer(prayer);
+  final value = PrayerTimes(c, DateComponents(d.year, d.month, d.day), params).timeForPrayer(prayer);
+  if (value == null) throw StateError('تعذر حساب موعد الصلاة');
+  return value;
 }
 String _timeText(DateTime d) {
   final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
@@ -77,8 +84,15 @@ class _PrayerPageState extends State<PrayerPage> {
   String? error;
   bool loading = false, alerts = false;
   int iqama = 10;
+  String? audioPath;
+  final AudioPlayer audioPlayer = AudioPlayer();
 
-  @override void initState() { super.initState(); _locate(); }
+  @override void initState() { super.initState(); _loadSettings(); _locate(); }
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() { alerts = prefs.getBool('prayer_alerts') ?? false; iqama = prefs.getInt('iqama_delay') ?? 10; audioPath = prefs.getString('adhan_audio_path'); });
+  }
   Future<void> _locate() async {
     setState(() { loading = true; error = null; });
     try {
@@ -106,9 +120,32 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _setIqama(int? v) async {
     if (v == null) return;
     setState(() => iqama = v);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('iqama_delay', v);
     if (alerts) await _refresh();
   }
+  Future<void> _chooseAdhan() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio, withData: true);
+    if (result == null || result.files.isEmpty || result.files.single.bytes == null) return;
+    final picked = result.files.single;
+    final ext = picked.extension ?? 'audio';
+    final dir = await getApplicationDocumentsDirectory();
+    final path = dir.path + '/adhan_' + DateTime.now().millisecondsSinceEpoch.toString() + '.' + ext;
+    final file = await File(path).writeAsBytes(picked.bytes!, flush: true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('adhan_audio_path', file.path);
+    if (!mounted) return;
+    setState(() => audioPath = file.path);
+    _msg('تم حفظ ملف الأذان داخل التطبيق.');
+  }
+  Future<void> _previewAdhan() async {
+    if (audioPath == null) return;
+    try { await audioPlayer.setFilePath(audioPath!); await audioPlayer.play(); }
+    catch (e) { _msg('تعذر تشغيل الملف: ' + e.toString()); }
+  }
   void _msg(String s) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s))); }
+
+  @override void dispose() { audioPlayer.dispose(); super.dispose(); }
 
   @override Widget build(BuildContext context) {
     final p = position;
@@ -138,7 +175,15 @@ class _PrayerPageState extends State<PrayerPage> {
           const Expanded(child: Text('الإقامة بعد الأذان')),
           DropdownButton<int>(value: iqama, items: [5, 10, 15, 20, 25, 30].map((v) => DropdownMenuItem(value: v, child: Text(v.toString() + ' دقائق'))).toList(), onChanged: _setIqama),
         ]),
-        const Text('طريقة الحساب: الهيئة المصرية العامة للمساحة. يلزم السماح بالموقع والإشعارات. صوت التنبيه هو صوت إشعار الهاتف؛ تشغيل ملف أذان كامل في الخلفية يحتاج خدمة صوت مستقلة.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5)),
+        const Divider(),
+        const Text('صوت الأذان من الهاتف', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(audioPath == null ? 'لم يتم اختيار ملف صوتي.' : 'تم حفظ ملف صوتي مخصص.'),
+        Wrap(spacing: 8, children: [
+          OutlinedButton.icon(onPressed: _chooseAdhan, icon: const Icon(Icons.audio_file), label: const Text('اختيار ملف')),
+          FilledButton.tonalIcon(onPressed: audioPath == null ? null : _previewAdhan, icon: const Icon(Icons.play_arrow), label: const Text('تشغيل تجريبي')),
+        ]),
+        const Text('التنبيه المجدول يستخدم صوت إشعار الهاتف. تشغيل ملف الأذان كاملًا تلقائيًا والهاتف مغلق يحتاج خدمة صوت خلفية مستقلة، ولم أفعّلها بعد.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5)),
+        const Text('طريقة الحساب: الهيئة المصرية العامة للمساحة. يلزم السماح بالموقع والإشعارات.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5)),
       ]))),
     ]);
   }
