@@ -6,16 +6,17 @@ import 'quran_data.dart';
 const _tafsirGreen = Color(0xFF176B45);
 
 class TafsirPage extends StatefulWidget {
-  const TafsirPage({super.key});
+  final String initialSource;
+  const TafsirPage({super.key, this.initialSource = 'muyassar'});
   @override State<TafsirPage> createState() => _TafsirPageState();
 }
 class _TafsirPageState extends State<TafsirPage> {
   int surah = 1;
   int ayah = 1;
-  String source = 'muyassar';
+  late String source;
+  @override void initState() { super.initState(); source = widget.initialSource; _load(); }
   Future<Map<int, String>>? data;
 
-  @override void initState() { super.initState(); _load(); }
   void _load() { setState(() { data = _fetch(); }); }
 
   Future<Map<int, String>> _fetch() async {
