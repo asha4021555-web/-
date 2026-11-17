@@ -539,9 +539,9 @@ class QiblaPage extends StatefulWidget {
 class _QiblaPageState extends State<QiblaPage>{
  double? qibla;String? error;bool loading=false;
  Future<void> _calculate() async {
-  setState(()=>{loading=true,error=null});
-  try{final c=await _configuredCoordinates();final value=Qibla(c).direction;if(!mounted)return;setState(()=>{qibla=value,loading=false});}
-  catch(e){if(!mounted)return;setState(()=>{error=e.toString().replaceFirst('Exception: ',''),loading=false});}
+  setState(() { loading=true; error=null; });
+  try{final c=await _configuredCoordinates();final value=Qibla(c).direction;if(!mounted)return;setState(() { qibla=value; loading=false; });}
+  catch(e){if(!mounted)return;setState(() { error=e.toString().replaceFirst('Exception: ' , ''); loading=false; });}
  }
  @override void initState(){super.initState();_calculate();}
  @override Widget build(BuildContext context)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:StreamBuilder<CompassEvent>(
