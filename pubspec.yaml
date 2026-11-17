@@ -35,6 +35,7 @@ flutter:
     - assets/quran-pages.json
     - assets/hadiths-1000.json
     - assets/QURAN_SOURCE.txt
+    - assets/mushaf_pages/
 
 flutter_launcher_icons:
   android: true

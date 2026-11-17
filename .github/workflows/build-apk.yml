@@ -68,6 +68,41 @@ jobs:
           print('Verified Madinah Mushaf pages:', len(pages))
           PY
 
+      - name: Bundle all 604 original full-resolution Mushaf page images
+        run: |
+          python3 - <<'PY'
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          output = Path('assets/mushaf_pages')
+          output.mkdir(parents=True, exist_ok=True)
+          base = 'https://raw.githubusercontent.com/Miftah-Fentaw/Quran_webp/main/png/'
+
+          def download(page):
+              request = Request(f'{base}{page}.png', headers={'User-Agent': 'NoorAlIslam-build/1.0'})
+              with urlopen(request, timeout=60) as response:
+                  data = response.read()
+              if len(data) < 1000:
+                  raise RuntimeError(f'Page {page} is unexpectedly small ({len(data)} bytes)')
+              signatures = (bytes.fromhex('89504e470d0a1a0a'), b'RIFF', b'GIF8', bytes.fromhex('ffd8ff'))
+              if not any(data.startswith(signature) for signature in signatures):
+                  raise RuntimeError(f'Page {page} is not a recognized original image file')
+              (output / f'{page}.png').write_bytes(data)
+              return len(data)
+
+          sizes = {}
+          with ThreadPoolExecutor(max_workers=12) as pool:
+              futures = {pool.submit(download, page): page for page in range(1, 605)}
+              for future in as_completed(futures):
+                  sizes[futures[future]] = future.result()
+
+          files = list(output.glob('*.png'))
+          if len(files) != 604:
+              raise SystemExit(f'Expected 604 original page images, found {len(files)}')
+          print(f'Bundled {len(files)} original full-resolution pages; total {sum(sizes.values()) / 1024 / 1024:.1f} MiB. No image conversion or compression performed.')
+          PY
+
       - name: Bundle the complete verified Uthmani Quran text
         run: |
           mkdir -p assets

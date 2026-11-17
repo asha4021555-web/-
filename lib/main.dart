@@ -469,12 +469,11 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
-                  child: Image.network(
-                    'https://raw.githubusercontent.com/Miftah-Fentaw/Quran_webp/main/png/$page.png',
+                  child: Image.asset(
+                    'assets/mushaf_pages/$page.png',
                     fit: BoxFit.fitWidth,
                     width: double.infinity,
-                    loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox(height: 360, child: Center(child: CircularProgressIndicator(color: green))),
-                    errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر تحميل صورة الصفحة $page. تحقق من الإنترنت.'))),
+                    errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر فتح صورة الصفحة $page من ملفات التطبيق.'))),
                   ),
                 ),
             ];
@@ -681,23 +680,13 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      'https://raw.githubusercontent.com/Miftah-Fentaw/Quran_webp/main/png/$pageNumber.png',
+                    child: Image.asset(
+                      'assets/mushaf_pages/$pageNumber.png',
                       fit: BoxFit.contain,
                       width: double.infinity,
                       height: double.infinity,
-                      loadingBuilder: (context, child, progress) => progress == null
-                          ? child
-                          : const Center(child: CircularProgressIndicator(color: green)),
                       errorBuilder: (context, error, stack) => Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.wifi_off, color: green, size: 36),
-                            const SizedBox(height: 8),
-                            Text('تعذر تحميل صورة الصفحة $pageNumber. تأكد من اتصال الإنترنت ثم أعد فتح الصفحة.', textAlign: TextAlign.center),
-                          ]),
-                        ),
+                        child: Text('تعذر فتح صورة الصفحة $pageNumber من ملفات التطبيق.', textAlign: TextAlign.center),
                       ),
                     ),
                   ),
