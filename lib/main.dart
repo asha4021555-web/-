@@ -184,7 +184,7 @@ class QuranPage extends StatelessWidget {
         title: Text('سورة ${surahs[surahIndex]}'),
         trailing: const Icon(Icons.chevron_left),
         onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => SurahReader(number: i, name: surahs[surahIndex]),
+          builder: (_) => ContinuousQuranReader(number: i, name: surahs[surahIndex]),
         )),
       );
     },
@@ -367,7 +367,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   bool _scrolling = false;
-  double _speed = 48;
+  double _speed = 140;
   late Future<_ContinuousReaderData> _data;
 
   @override
@@ -528,10 +528,18 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 child: SafeArea(top: false, child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Wrap(spacing: 6, children: [
+                      for (final preset in const [('بطيء', 45.0), ('متوسط', 140.0), ('سريع', 300.0)])
+                        ChoiceChip(
+                          label: Text(preset.$1),
+                          selected: _speed == preset.$2,
+                          onSelected: (_) => setState(() => _speed = preset.$2),
+                        ),
+                    ]),
                     Row(children: [
                       const Text('سرعة التمرير', style: TextStyle(fontWeight: FontWeight.bold)),
                       Expanded(child: Slider(
-                        value: _speed, min: 10, max: 150, divisions: 35,
+                        value: _speed, min: 20, max: 400, divisions: 38,
                         label: '${_speed.round()}',
                         activeColor: green,
                         onChanged: (value) => setState(() => _speed = value),
@@ -631,8 +639,8 @@ class _MushafBookReaderState extends State<MushafBookReader> {
     super.initState();
     futurePages = _loadPages();
     SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
     ]);
   }
 
@@ -711,30 +719,38 @@ class _MushafBookReaderState extends State<MushafBookReader> {
               itemCount: pages.length,
               onPageChanged: (value) => setState(() => index = value),
               itemBuilder: (context, pageIndex) {
-                final page = pages[pageIndex];
-                final ayahs = page['ayahs'] as List<Map<String, dynamic>>;
+                final pageNumber = pageIndex + 1;
                 return Container(
                   margin: const EdgeInsets.fromLTRB(8, 2, 8, 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
-                  child: SingleChildScrollView(child: Column(children: [
-                    for (final ayah in ayahs) ...[
-                      if (ayah['number'] == 1) ...[
-                        Padding(padding: const EdgeInsets.only(top: 5, bottom: 4), child: Text('سُورَةُ ${quranSurahNames[(ayah['surah'] as int) - 1]}', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18))),
-                        if (ayah['surah'] != 1 && ayah['surah'] != 9)
-                          const Padding(padding: EdgeInsets.only(bottom: 5), child: Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', style: TextStyle(color: Colors.black, fontSize: 19))),
-                      ],
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text.rich(TextSpan(children: [
-                          ..._colorAllah(ayah['text'] as String),
-                          TextSpan(text: ' ﴿${ayah['number']}﴾ '),
-                        ]), textAlign: TextAlign.justify, style: const TextStyle(fontSize: 21, height: 1.85, color: Colors.black)),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F3E8),
+                    border: Border.all(color: softGold, width: 1.2),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 8, offset: Offset(0, 3))],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      'https://raw.githubusercontent.com/Miftah-Fentaw/Quran_webp/main/png/$pageNumber.png',
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, progress) => progress == null
+                          ? child
+                          : const Center(child: CircularProgressIndicator(color: green)),
+                      errorBuilder: (context, error, stack) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.wifi_off, color: green, size: 36),
+                            const SizedBox(height: 8),
+                            Text('تعذر تحميل صورة الصفحة $pageNumber. تأكد من اتصال الإنترنت ثم أعد فتح الصفحة.', textAlign: TextAlign.center),
+                          ]),
+                        ),
                       ),
-                    ],
-                    const SizedBox(height: 8),
-                    Text('— ${page['page']} —', style: const TextStyle(color: Colors.black54)),
-                  ])),
+                    ),
+                  ),
                 );
               },
             )),
