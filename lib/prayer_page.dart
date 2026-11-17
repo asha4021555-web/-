@@ -226,7 +226,8 @@ class _PrayerPageState extends State<PrayerPage> {
       methodKey=prefs.getString('calculation_method')??'egyptian';
       alerts=prefs.getBool('prayer_alerts')??false;
       iqama=prefs.getInt('iqama_delay')??10;
-      audioPath=prefs.getString('adhan_audio_path');
+      final savedAudio=prefs.getString('adhan_audio_path');
+      audioPath=savedAudio!=null && File(savedAudio).existsSync() ? savedAudio : null;
     });
     if(coordinates==null)await _locate();
   }
@@ -412,30 +413,56 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _downloadHaramAdhan() async {
     if (downloadingHaram) return;
     setState(() => downloadingHaram = true);
-    final client = http.Client();
+    String? lastError;
     try {
-      final uri = Uri.parse('https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_HQ.mp3');
-      final request = http.Request('GET', uri)..headers['User-Agent'] = 'NoorAlIslamApp/1.0';
-      final streamed = await client.send(request).timeout(const Duration(seconds: 90));
-      if (streamed.statusCode != 200) throw Exception('HTTP ${streamed.statusCode}');
-      final bytes = await streamed.stream.toBytes().timeout(const Duration(seconds: 120));
-      if (bytes.length < 100000) throw Exception('ملف صوت غير مكتمل');
+      final urls = [
+        'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_HQ.mp3',
+        'https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_HQ.mp3',
+      ];
+      List<int>? audioBytes;
+      for (final address in urls) {
+        try {
+          final response = await http.get(
+            Uri.parse(address),
+            headers: const {'User-Agent': 'NoorAlIslamApp/1.0'},
+          ).timeout(const Duration(seconds: 120));
+          if (response.statusCode != 200) {
+            throw Exception('HTTP ${response.statusCode}');
+          }
+          final bytes = response.bodyBytes;
+          final isMp3 = bytes.length > 100000 &&
+              ((bytes.length > 3 && bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) ||
+               (bytes.length > 1 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0));
+          if (!isMp3) throw Exception('الملف المستلم ليس ملف MP3 صالحًا');
+          audioBytes = bytes;
+          break;
+        } catch (e) {
+          lastError = e.toString();
+        }
+      }
+      if (audioBytes == null) {
+        throw Exception(lastError ?? 'تعذر الوصول إلى مصدر الأذان');
+      }
+
       final dir = await getApplicationDocumentsDirectory();
-      final file = File(dir.path + '/adhan_ali_ibn_ahmad_mala.mp3');
-      await file.writeAsBytes(bytes, flush: true);
-      if (await file.length() != bytes.length) throw Exception('لم يكتمل حفظ الملف');
+      final file = File('${dir.path}/adhan_ali_ibn_ahmad_mala.mp3');
+      await file.writeAsBytes(audioBytes, flush: true);
+      if (!await file.exists() || await file.length() != audioBytes.length) {
+        throw Exception('لم يكتمل حفظ ملف الأذان على الهاتف');
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('adhan_audio_path', file.path);
       if (!mounted) return;
       setState(() => audioPath = file.path);
-      _msg('تم تنزيل الأذان وحفظه على الهاتف. يمكنك تشغيله دون إنترنت بعد ذلك.');
+      _msg('تمت إضافة أذان الحرم المكي وحفظه على الهاتف. اضغط «تجربة الصوت» للتأكد من تشغيله.');
     } catch (e) {
-      _msg('فشل تنزيل الأذان. تأكد من اتصال الإنترنت ثم أعد المحاولة.');
+      _msg('لم تتم إضافة أذان الحرم: ${e.toString()}');
     } finally {
-      client.close();
       if (mounted) setState(() => downloadingHaram = false);
     }
   }
+
   Future<void> _previewAdhan() async {
     if(audioPath==null)return;
     try{await audioPlayer.setFilePath(audioPath!);await audioPlayer.play();}
