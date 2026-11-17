@@ -28,6 +28,21 @@ jobs:
       - name: Generate Android platform files
         run: flutter create --platforms=android --org com.nooralislam .
 
+      - name: Bundle the complete verified Uthmani Quran text
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/nurekella/namaz-times-kz/main/quran/ar.txt \
+            --output assets/quran-uthmani.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('assets/quran-uthmani.txt').read_text(encoding='utf-8')
+          lines = text.splitlines()
+          if len(lines) != 6236 or any('|' in line for line in lines):
+              raise SystemExit(f'Invalid Quran asset: {len(lines)} lines')
+          print('Verified bundled Quran:', len(lines), 'ayahs')
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
