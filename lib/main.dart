@@ -943,9 +943,16 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     final query = _foldArabic(value.trim());
     setState(() {
       if (query.isEmpty) { _results = []; return; }
-      _results = _index.where((hit) =>
+      final matches = _index.where((hit) =>
         _foldArabic('${hit.title} ${hit.body} ${hit.category}').contains(query)
-      ).take(150).toList();
+      );
+      final perCategory = <String, int>{};
+      _results = matches.where((hit) {
+        final count = perCategory[hit.category] ?? 0;
+        if (count >= 25) return false;
+        perCategory[hit.category] = count + 1;
+        return true;
+      }).take(150).toList();
     });
   }
 
