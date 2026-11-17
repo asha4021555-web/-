@@ -642,18 +642,6 @@ class _MushafBookReaderState extends State<MushafBookReader> {
     });
   }
 
-  List<InlineSpan> _colorAllah(String text) {
-    final spans = <InlineSpan>[];
-    final regex = RegExp(r'(اللَّهُ|اللَّهِ|اللَّهَ|اللَّه|الله)');
-    var start = 0;
-    for (final match in regex.allMatches(text)) {
-      if (match.start > start) spans.add(TextSpan(text: text.substring(start, match.start)));
-      spans.add(TextSpan(text: match.group(0), style: const TextStyle(color: Color(0xFFB3261E), fontWeight: FontWeight.w600)));
-      start = match.end;
-    }
-    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
-    return spans;
-  }
 
   @override
   void dispose() {
