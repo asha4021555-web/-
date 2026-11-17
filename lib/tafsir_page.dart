@@ -83,7 +83,7 @@ class _TafsirPageState extends State<TafsirPage> {
           ])));
           final text = snapshot.data?[ayah];
           return Card(color: Colors.white, child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text('سورة ' + QuranPage.surahs[surah - 1] + ' - الآية ' + ayah.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: _tafsirGreen)),
+            Text('سورة ' + quranSurahNames[surah - 1] + ' - الآية ' + ayah.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: _tafsirGreen)),
             const Divider(),
             SelectableText(text ?? 'لا يتوفر نص لهذه الآية في النسخة الرقمية الحالية.', style: const TextStyle(fontSize: 18, height: 2)),
           ])));
