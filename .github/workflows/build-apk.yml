@@ -54,6 +54,20 @@ jobs:
           print('Configured desugar dependency in', p)
           PY
 
+      - name: Bundle verified Madinah Mushaf page boundaries
+        run: |
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/Mushaf-Learning/quran-text/main/metadata/pages.json \
+            --output assets/quran-pages.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pages = json.loads(Path('assets/quran-pages.json').read_text(encoding='utf-8'))
+          if len(pages) != 604 or [x.get('page') for x in pages] != list(range(1, 605)):
+              raise SystemExit('Invalid Madinah Mushaf page mapping')
+          print('Verified Madinah Mushaf pages:', len(pages))
+          PY
+
       - name: Bundle the complete verified Uthmani Quran text
         run: |
           mkdir -p assets
