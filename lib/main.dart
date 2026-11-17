@@ -1,6 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 void main()=>runApp(const NoorApp());
 const green=Color(0xFF176B45);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة'];
@@ -8,7 +7,7 @@ const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_acti
 class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green),scaffoldBackgroundColor:const Color(0xFFF7F8F3)),home:const HomePage());}
 class HomePage extends StatelessWidget{const HomePage({super.key});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[green,Color(0xFF0D4930)]),borderRadius:BorderRadius.circular(22)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('أهلاً بك في نور الإسلام',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.bold)),SizedBox(height:8),Text('رفيقك للقرآن والذكر والعبادة',style:TextStyle(color:Colors.white70))])),const SizedBox(height:18),GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:titles.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,crossAxisSpacing:12,mainAxisSpacing:12,childAspectRatio:1.12),itemBuilder:(c,i)=>Card(color:Colors.white,child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SectionPage(index:i))),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icons[i],size:34,color:green),const SizedBox(height:10),Text(titles[i],textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.bold))]))))])));}
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const InfoPage(icon:Icons.access_time,title:'مواقيت الصلاة',message:'حساب المواقيت والتنبيهات لم يُفعّل بعد. يلزم تحديد الموقع واختيار طريقة الحساب وضبط أذونات الإشعارات قبل عرض أوقات دقيقة.'),_=>const InfoPage(icon:Icons.explore,title:'اتجاه القبلة',message:'تحديد اتجاه القبلة يحتاج إلى صلاحية الموقع ومستشعر اتجاه الهاتف. لم نعرض اتجاهًا تقديريًا حتى لا نعطيك اتجاهًا غير صحيح.')}));}
-class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=['الفاتحة','البقرة','آل عمران','النساء','المائدة','الأنعام','الأعراف','الأنفال','التوبة','يونس','هود','يوسف','الرعد','إبراهيم','الحجر','النحل','الإسراء','الكهف','مريم','طه','الأنبياء','الحج','المؤمنون','النور','الفرقان','الشعراء','النمل','القصص','العنكبوت','الروم','لقمان','السجدة','الأحزاب','سبأ','فاطر','يس','الصافات','ص','الزمر','غافر','فصلت','الشورى','الزخرف','الدخان','الجاثية','الأحقاف','محمد','الفتح','الحجرات','ق','الذاريات','الطور','النجم','القمر','الرحمن','الواقعة','الحديد','المجادلة','الحشر','الممتحنة','الصف','الجمعة','المنافقون','التغابن','الطلاق','التحريم','الملك','القلم','الحاقة','المعارج','نوح','الجن','المزمل','المدثر','القيامة','الإنسان','المرسلات','النبأ','النازعات','عبس','التكوير','الانفطار','المطففين','الانشقاق','البروج','الطارق','الأعلى','الغاشية','الفجر','البلد','الشمس','الليل','الضحى','الشرح','التين','العلق','القدر','البينة','الزلزلة','العاديات','القارعة','التكاثر','العصر','الهمزة','الفيل','قريش','الماعون','الكوثر','الكافرون','النصر','المسد','الإخلاص','الفلق','الناس'];@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
+class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=['الفاتحة','البقرة','آل عمران','النساء','المائدة','الأنعام','الأعراف','الأنفال','التوبة','يونس','هود','يوسف','الرعد','إبراهيم','الحجر','النحل','الإسراء','الكهف','مريم','طه','الأنبياء','الحج','المؤمنون','النور','الفرقان','الشعراء','النمل','القصص','العنكبوت','الروم','لقمان','السجدة','الأحزاب','سبأ','فاطر','يس','الصافات','ص','الزمر','غافر','فصلت','الشورى','الزخرف','الدخان','الجاثية','الأحقاف','محمد','الفتح','الحجرات','ق','الذاريات','الطور','النجم','القمر','الرحمن','الواقعة','الحديد','المجادلة','الحشر','الممتحنة','الصف','الجمعة','المنافقون','التغابن','الطلاق','التحريم','الملك','القلم','الحاقة','المعارج','نوح','الجن','المزمل','المدثر','القيامة','الإنسان','المرسلات','النبأ','النازعات','عبس','التكوير','الانفطار','المطففين','الانشقاق','البروج','الطارق','الأعلى','الغاشية','الفجر','البلد','الشمس','الليل','الضحى','الشرح','التين','العلق','القدر','البينة','الزلزلة','العاديات','القارعة','التكاثر','العصر','الهمزة','الفيل','قريش','الماعون','الكوثر','الكافرون','النصر','المسد','الإخلاص','الفلق','الناس'];static const surahAyahCounts=[7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
 
 class SurahReader extends StatefulWidget {
   final int number;
@@ -29,19 +28,24 @@ class _SurahReaderState extends State<SurahReader> {
   }
 
   Future<List<dynamic>> loadVerses() async {
-    final response = await http
-        .get(Uri.parse(
-            'https://api.alquran.cloud/v1/surah/${widget.number}/quran-uthmani'))
-        .timeout(const Duration(seconds: 25));
-    if (response.statusCode != 200) {
-      throw Exception('تعذر تحميل السورة برمز: ${response.statusCode}');
+    // The complete Uthmani Quran text is bundled in the APK (6236 lines).
+    // Reading from assets means no internet connection is needed.
+    final text = await rootBundle.loadString('assets/quran-uthmani.txt');
+    final allAyahs = text.split('\n');
+    if (allAyahs.length != 6236) {
+      throw Exception('ملف القرآن غير مكتمل: ${allAyahs.length} آية');
     }
-    final body =
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    if (body['code'] != 200) {
-      throw Exception('مصدر القرآن لم يُرجع البيانات المطلوبة');
-    }
-    return body['data']['ayahs'] as List<dynamic>;
+    final start = QuranPage.surahAyahCounts
+        .take(widget.number - 1)
+        .fold<int>(0, (sum, count) => sum + count);
+    final count = QuranPage.surahAyahCounts[widget.number - 1];
+    return List.generate(
+      count,
+      (index) => {
+        'text': allAyahs[start + index],
+        'numberInSurah': index + 1,
+      },
+    );
   }
 
   @override
@@ -64,7 +68,7 @@ class _SurahReaderState extends State<SurahReader> {
                   children: [
                     CircularProgressIndicator(),
                     SizedBox(height: 14),
-                    Text('جارٍ تحميل آيات السورة...'),
+                    Text('جارٍ فتح آيات السورة من داخل التطبيق...'),
                   ],
                 ),
               );
@@ -79,7 +83,7 @@ class _SurahReaderState extends State<SurahReader> {
                       const Icon(Icons.wifi_off, size: 48, color: green),
                       const SizedBox(height: 12),
                       const Text(
-                        'لم نتمكن من تحميل السورة. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',
+                        'تعذر فتح ملف السورة. أعد المحاولة، وإذا استمرت المشكلة فأعد تثبيت التطبيق.',
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 14),
