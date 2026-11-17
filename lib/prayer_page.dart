@@ -210,6 +210,7 @@ class _PrayerPageState extends State<PrayerPage> {
   bool loading=false,alerts=false;
   int iqama=10;
   String? audioPath;
+  bool downloadingHaram=false;
   final AudioPlayer audioPlayer=AudioPlayer();
 
   @override void initState(){super.initState();_loadSettings();}
@@ -405,6 +406,29 @@ class _PrayerPageState extends State<PrayerPage> {
     setState(()=>audioPath=file.path);
     _msg('تم حفظ ملف الأذان داخل التطبيق. سيُستخدم بعد تفعيل تشغيل الأذان الخلفي.');
   }
+  Future<void> _downloadHaramAdhan() async {
+    if (downloadingHaram) return;
+    setState(() => downloadingHaram = true);
+    try {
+      final uri = Uri.parse('https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_1_-_Al_Haram_Al_Maki_(%D8%B9%D9%84%D9%8A_%D8%A8%D9%86_%D8%A3%D8%AD%D9%85%D8%AF_%D9%85%D9%84%D8%A7_-_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D9%83%D9%8A).mp3');
+      final response = await http.get(uri).timeout(const Duration(seconds: 45));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        throw Exception('تعذر تنزيل تسجيل أذان الحرم المكي.');
+      }
+      final dir = await getApplicationDocumentsDirectory();
+      final file = await File(dir.path + '/adhan_haram_makki_ali_mala.mp3')
+          .writeAsBytes(response.bodyBytes, flush: true);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('adhan_audio_path', file.path);
+      if (!mounted) return;
+      setState(() => audioPath = file.path);
+      _msg('تم تنزيل أذان الحرم المكي وحفظه. اضغط «تجربة الصوت» للاستماع.');
+    } catch (e) {
+      _msg('تعذر تنزيل أذان الحرم المكي. تأكد من الإنترنت وحاول مرة أخرى.');
+    } finally {
+      if (mounted) setState(() => downloadingHaram = false);
+    }
+  }
   Future<void> _previewAdhan() async {
     if(audioPath==null)return;
     try{await audioPlayer.setFilePath(audioPath!);await audioPlayer.play();}
@@ -482,12 +506,19 @@ class _PrayerPageState extends State<PrayerPage> {
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت الأذان',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
         Text(audioPath==null?'صوت إشعار الهاتف الافتراضي': 'تم اختيار ملف صوتي من الهاتف'),
-        Wrap(spacing:8,children:[
-          OutlinedButton.icon(onPressed:_chooseAdhan,icon:const Icon(Icons.audio_file),label:const Text('اختيار ملف أذان')),
+        OutlinedButton.icon(
+          onPressed: downloadingHaram ? null : _downloadHaramAdhan,
+          icon: downloadingHaram
+              ? const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))
+              : const Icon(Icons.mosque),
+          label: Text(downloadingHaram ? 'جارٍ تنزيل أذان الحرم...' : 'تنزيل أذان الحرم المكي - علي بن أحمد ملا'),
+        ),
+        Wrap(spacing:8,runSpacing:8,children:[
+          OutlinedButton.icon(onPressed:_chooseAdhan,icon:const Icon(Icons.audio_file),label:const Text('اختيار ملف من الهاتف')),
           FilledButton.tonalIcon(onPressed:audioPath==null?null:_previewAdhan,icon:const Icon(Icons.play_arrow),label:const Text('تجربة الصوت')),
           TextButton(onPressed:audioPath==null?null:_clearAudio,child:const Text('الصوت الافتراضي')),
         ]),
-        const Text('اختيار الملف وحفظه متاحان. التنبيهات المجدولة حاليًا تستخدم صوت إشعار أندرويد؛ تشغيل ملف الأذان كاملًا تلقائيًا في الخلفية يحتاج خدمة صوت مستقلة.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
+        const Text('تسجيل الأذان من الحرم المكي بصوت علي بن أحمد ملا يُنزّل إلى الهاتف داخل التطبيق ويعمل دون إنترنت بعد التنزيل. التنبيهات المجدولة لا تزال تستخدم صوت إشعار أندرويد؛ تشغيل الأذان كاملًا تلقائيًا في الخلفية لم يُنفّذ بعد.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
       ]))),
     ]);
   }
