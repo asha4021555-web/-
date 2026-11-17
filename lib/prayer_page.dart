@@ -17,6 +17,8 @@ final ValueNotifier<int> prayerSettingsVersion = ValueNotifier(0);
 
 final Map<String, Coordinates> _knownCities = {
   'المنيا': Coordinates(28.1099, 30.7503),
+  'دير مواس': Coordinates(27.6418, 30.85175),
+  'دلجا': Coordinates(27.64343, 30.69962),
   'القاهرة': Coordinates(30.0444, 31.2357),
   'الجيزة': Coordinates(30.0131, 31.2089),
   'الإسكندرية': Coordinates(31.2001, 29.9187),
