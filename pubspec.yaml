@@ -29,4 +29,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/quran-uthmani.txt
+    - assets/quran-pages.json
     - assets/QURAN_SOURCE.txt
