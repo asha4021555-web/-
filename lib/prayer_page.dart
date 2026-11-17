@@ -1,0 +1,174 @@
+import 'package:adhan/adhan.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
+
+const _green = Color(0xFF176B45);
+final _notifier = FlutterLocalNotificationsPlugin();
+
+Future<Position> _getPosition() async {
+  if (!await Geolocator.isLocationServiceEnabled()) throw Exception('فعّل خدمة الموقع GPS.');
+  var permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+  if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    throw Exception('اسمح للتطبيق باستخدام الموقع لحساب المواقيت.');
+  }
+  return Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+}
+
+Future<void> _initAlerts() async {
+  tzdata.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Africa/Cairo'));
+  await _notifier.initialize(const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
+  final android = _notifier.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await android?.requestNotificationsPermission();
+  await android?.requestExactAlarmsPermission();
+}
+
+DateTime _getTime(Coordinates c, DateTime d, Prayer prayer) {
+  final params = CalculationMethod.egyptian.getParameters()..madhab = Madhab.shafi;
+  return PrayerTimes(c, DateComponents(d.year, d.month, d.day), params).timeForPrayer(prayer);
+}
+String _timeText(DateTime d) {
+  final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+  return h.toString() + ':' + d.minute.toString().padLeft(2, '0') + (d.hour < 12 ? ' ص' : ' م');
+}
+
+Future<void> _scheduleAlerts(Coordinates c, int iqama) async {
+  await _initAlerts();
+  await _notifier.cancelAll();
+  const details = NotificationDetails(android: AndroidNotificationDetails(
+    'noor_prayers', 'تنبيهات الصلاة',
+    channelDescription: 'تنبيه قبل الصلاة وعند دخول الوقت وموعد الإقامة',
+    importance: Importance.max, priority: Priority.high, playSound: true, enableVibration: true,
+  ));
+  final now = DateTime.now();
+  const prayers = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
+  const names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+  for (var day = 0; day < 7; day++) {
+    final date = DateTime(now.year, now.month, now.day + day);
+    for (var i = 0; i < prayers.length; i++) {
+      final at = _getTime(c, date, prayers[i]);
+      final events = [at.subtract(const Duration(minutes: 10)), at, at.add(Duration(minutes: iqama))];
+      final labels = ['باقي 10 دقائق على صلاة ' + names[i], 'حان الآن وقت صلاة ' + names[i], 'موعد الإقامة لصلاة ' + names[i]];
+      for (var kind = 0; kind < events.length; kind++) {
+        if (!events[kind].isAfter(now)) continue;
+        await _notifier.zonedSchedule(
+          day * 100 + i * 3 + kind + 1,
+          kind == 0 ? 'تنبيه الصلاة' : (kind == 1 ? 'حان وقت الصلاة' : 'موعد الإقامة'),
+          labels[kind],
+          tz.TZDateTime.from(events[kind], tz.local),
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+      }
+    }
+  }
+}
+
+class PrayerPage extends StatefulWidget {
+  const PrayerPage({super.key});
+  @override State<PrayerPage> createState() => _PrayerPageState();
+}
+class _PrayerPageState extends State<PrayerPage> {
+  Position? position;
+  String? error;
+  bool loading = false, alerts = false;
+  int iqama = 10;
+
+  @override void initState() { super.initState(); _locate(); }
+  Future<void> _locate() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final p = await _getPosition();
+      if (!mounted) return;
+      setState(() { position = p; loading = false; });
+      if (alerts) await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { error = e.toString().replaceFirst('Exception: ', ''); loading = false; });
+    }
+  }
+  Future<void> _refresh() async {
+    if (position == null) return;
+    await _scheduleAlerts(Coordinates(position!.latitude, position!.longitude), iqama);
+  }
+  Future<void> _toggle(bool value) async {
+    if (value && position == null) { await _locate(); if (position == null) return; }
+    setState(() => alerts = value);
+    if (value) {
+      try { await _refresh(); _msg('تم ضبط التنبيهات للأيام السبعة القادمة.'); }
+      catch (e) { setState(() => alerts = false); _msg('تعذر ضبط التنبيهات: ' + e.toString()); }
+    } else { await _notifier.cancelAll(); _msg('تم إيقاف التنبيهات.'); }
+  }
+  Future<void> _setIqama(int? v) async {
+    if (v == null) return;
+    setState(() => iqama = v);
+    if (alerts) await _refresh();
+  }
+  void _msg(String s) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s))); }
+
+  @override Widget build(BuildContext context) {
+    final p = position;
+    final today = DateTime.now();
+    final times = p == null ? null : PrayerTimes.today(
+      Coordinates(p.latitude, p.longitude),
+      CalculationMethod.egyptian.getParameters()..madhab = Madhab.shafi,
+    );
+    final rows = times == null ? <MapEntry<String, DateTime>>[] : [
+      MapEntry('الفجر', times.fajr), MapEntry('الشروق', times.sunrise),
+      MapEntry('الظهر', times.dhuhr), MapEntry('العصر', times.asr),
+      MapEntry('المغرب', times.maghrib), MapEntry('العشاء', times.isha),
+    ];
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const Text('مواقيت الصلاة اليوم', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: _green)),
+        Text(today.day.toString() + '/' + today.month.toString() + '/' + today.year.toString()),
+        if (loading) const Center(child: CircularProgressIndicator()),
+        if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
+        for (final row in rows) ListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text(row.key), trailing: Text(_timeText(row.value), style: const TextStyle(fontSize: 18, color: _green, fontWeight: FontWeight.bold))),
+        OutlinedButton.icon(onPressed: loading ? null : _locate, icon: const Icon(Icons.my_location), label: const Text('تحديث موقعي')),
+      ]))),
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const Text('تنبيهات الصلاة', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: _green)),
+        SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('تفعيل التنبيهات'), subtitle: const Text('قبل الصلاة بـ10 دقائق، وعند دخول الوقت، ثم الإقامة'), value: alerts, onChanged: _toggle),
+        Row(children: [
+          const Expanded(child: Text('الإقامة بعد الأذان')),
+          DropdownButton<int>(value: iqama, items: [5, 10, 15, 20, 25, 30].map((v) => DropdownMenuItem(value: v, child: Text(v.toString() + ' دقائق'))).toList(), onChanged: _setIqama),
+        ]),
+        const Text('طريقة الحساب: الهيئة المصرية العامة للمساحة. يلزم السماح بالموقع والإشعارات. صوت التنبيه هو صوت إشعار الهاتف؛ تشغيل ملف أذان كامل في الخلفية يحتاج خدمة صوت مستقلة.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.5)),
+      ]))),
+    ]);
+  }
+}
+
+class QiblaPage extends StatefulWidget {
+  const QiblaPage({super.key});
+  @override State<QiblaPage> createState() => _QiblaPageState();
+}
+class _QiblaPageState extends State<QiblaPage> {
+  double? bearing; String? error; bool loading = false;
+  Future<void> _calculate() async {
+    setState(() { loading = true; error = null; });
+    try {
+      final p = await _getPosition();
+      final value = Qibla(Coordinates(p.latitude, p.longitude)).direction;
+      if (!mounted) return;
+      setState(() { bearing = value; loading = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { error = e.toString().replaceFirst('Exception: ', ''); loading = false; });
+    }
+  }
+  @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+    const Icon(Icons.explore, size: 64, color: _green),
+    const Text('اتجاه القبلة', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+    if (loading) const CircularProgressIndicator(),
+    if (bearing != null) Text(bearing!.toStringAsFixed(1) + '°', style: const TextStyle(fontSize: 42, color: _green, fontWeight: FontWeight.bold)),
+    if (bearing != null) const Text('الزاوية من الشمال الجغرافي، وليست اتجاه الهاتف اللحظي.'),
+    if (error != null) Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
+    FilledButton.icon(onPressed: loading ? null : _calculate, icon: const Icon(Icons.my_location), label: const Text('تحديد القبلة من موقعي')),
+  ])));
+}
