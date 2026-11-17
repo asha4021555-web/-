@@ -150,7 +150,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const StoriesPage(),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
@@ -159,32 +159,30 @@ class QuranPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView.separated(
     padding: const EdgeInsets.all(12),
-    itemCount: surahs.length,
+    itemCount: surahs.length + 1,
     separatorBuilder: (_, __) => const Divider(height: 1),
-    itemBuilder: (context, i) => ListTile(
-      leading: CircleAvatar(child: Text('${i + 1}')),
-      title: Text('سورة ${surahs[i]}'),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          tooltip: 'قراءة متتابعة بالتمرير التلقائي',
-          icon: const Icon(Icons.vertical_align_bottom, color: green),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => ContinuousQuranReader(number: i + 1, name: surahs[i]),
-          )),
-        ),
-        IconButton(
-          tooltip: 'مصحف مستقل بتقليب الصفحات',
-          icon: const Icon(Icons.menu_book, color: Colors.brown),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => MushafPageReader(number: i + 1, name: surahs[i]),
-          )),
-        ),
-        const Icon(Icons.chevron_left),
-      ]),
-      onTap: () => Navigator.push(context, MaterialPageRoute(
-        builder: (_) => SurahReader(number: i + 1, name: surahs[i]),
-      )),
-    ),
+    itemBuilder: (context, i) {
+      if (i == 0) {
+        return Card(
+          child: ListTile(
+            leading: const Icon(Icons.menu_book, color: green, size: 30),
+            title: const Text('قرآن مجيد', style: TextStyle(fontWeight: FontWeight.bold, color: green)),
+            subtitle: const Text('المصحف كاملًا مع تقليب الصفحات بالعرض'),
+            trailing: const Icon(Icons.chevron_left),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MushafBookReader())),
+          ),
+        );
+      }
+      final surahIndex = i - 1;
+      return ListTile(
+        leading: CircleAvatar(child: Text('${i}')),
+        title: Text('سورة ${surahs[surahIndex]}'),
+        trailing: const Icon(Icons.chevron_left),
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => SurahReader(number: i, name: surahs[surahIndex]),
+        )),
+      );
+    },
   );
 }
 
@@ -199,6 +197,7 @@ class SurahReader extends StatefulWidget {
 
 class _SurahReaderState extends State<SurahReader> {
   late Future<List<dynamic>> verses;
+  double fontSize = 25;
 
   @override
   void initState() {
@@ -280,6 +279,11 @@ class _SurahReaderState extends State<SurahReader> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                Row(children: [
+                  const Text('حجم الخط'),
+                  Expanded(child: Slider(value: fontSize, min: 18, max: 40, divisions: 11, label: fontSize.round().toString(), onChanged: (v) => setState(() => fontSize = v), activeColor: green)),
+                  Text(fontSize.round().toString()),
+                ]),
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
@@ -313,7 +317,7 @@ class _SurahReaderState extends State<SurahReader> {
                         Text(
                           ayah['text'] as String,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 25, height: 2.0),
+                          style: TextStyle(fontSize: fontSize, height: 2.0),
                         ),
                         Container(
                           width: 34,
@@ -605,6 +609,142 @@ class _MushafPageReaderState extends State<MushafPageReader>{
   }),
  ));
 }
+
+class MushafBookReader extends StatefulWidget {
+  const MushafBookReader({super.key});
+  @override
+  State<MushafBookReader> createState() => _MushafBookReaderState();
+}
+
+class _MushafBookReaderState extends State<MushafBookReader> {
+  late Future<List<Map<String, dynamic>>> futurePages;
+  final PageController controller = PageController();
+  int index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    futurePages = _loadPages();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadPages() async {
+    final lines = (await rootBundle.loadString('assets/quran-uthmani.txt')).split('\n');
+    if (lines.length != 6236) throw Exception('ملف القرآن غير مكتمل: ${lines.length} آية');
+    final metadata = jsonDecode(await rootBundle.loadString('assets/quran-pages.json')) as List<dynamic>;
+    if (metadata.length != 604) throw Exception('بيانات صفحات المصحف غير مكتملة.');
+
+    final allAyahs = <Map<String, dynamic>>[];
+    var offset = 0;
+    for (var s = 0; s < quranAyahCounts.length; s++) {
+      for (var a = 1; a <= quranAyahCounts[s]; a++) {
+        allAyahs.add({'text': lines[offset++], 'number': a, 'surah': s + 1});
+      }
+    }
+
+    final starts = <int>[];
+    for (final raw in metadata) {
+      final entry = raw as Map<String, dynamic>;
+      final surah = entry['sura'] as int;
+      final ayah = entry['aya'] as int;
+      if (surah < 1 || surah > 114 || ayah < 1 || ayah > quranAyahCounts[surah - 1]) {
+        throw Exception('موضع صفحة غير صحيح في بيانات المصحف.');
+      }
+      starts.add(quranAyahCounts.take(surah - 1).fold<int>(0, (sum, n) => sum + n) + ayah - 1);
+    }
+    if (starts.length != 604 || starts.first != 0) throw Exception('بداية صفحات المصحف غير صحيحة.');
+    for (var i = 1; i < starts.length; i++) {
+      if (starts[i] <= starts[i - 1]) throw Exception('ترتيب صفحات المصحف غير صحيح.');
+    }
+
+    return List.generate(604, (pageIndex) {
+      final start = starts[pageIndex];
+      final end = pageIndex == 603 ? allAyahs.length : starts[pageIndex + 1];
+      return {'page': pageIndex + 1, 'ayahs': allAyahs.sublist(start, end)};
+    });
+  }
+
+  List<InlineSpan> _colorAllah(String text) {
+    final spans = <InlineSpan>[];
+    final regex = RegExp(r'(اللَّهُ|اللَّهِ|اللَّهَ|اللَّه|الله)');
+    var start = 0;
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) spans.add(TextSpan(text: text.substring(start, match.start)));
+      spans.add(TextSpan(text: match.group(0), style: const TextStyle(color: Color(0xFFB3261E), fontWeight: FontWeight.w600)));
+      start = match.end;
+    }
+    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+    return spans;
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Scaffold(
+      appBar: AppBar(title: const Text('قرآن مجيد'), backgroundColor: green, foregroundColor: Colors.white),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: futurePages,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('تعذر فتح المصحف: ${snapshot.error}', textAlign: TextAlign.center)));
+          final pages = snapshot.data ?? [];
+          if (pages.isEmpty) return const Center(child: Text('لا توجد صفحات'));
+          return Column(children: [
+            Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Text('صفحة ${index + 1} من 604 • اسحب يمينًا ويسارًا للتقليب', style: const TextStyle(color: green, fontWeight: FontWeight.bold))),
+            Expanded(child: PageView.builder(
+              controller: controller,
+              itemCount: pages.length,
+              onPageChanged: (value) => setState(() => index = value),
+              itemBuilder: (context, pageIndex) {
+                final page = pages[pageIndex];
+                final ayahs = page['ayahs'] as List<Map<String, dynamic>>;
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(color: const Color(0xFFFFFEF8), border: Border.all(color: const Color(0xFFD7C9A8)), borderRadius: BorderRadius.circular(8)),
+                  child: SingleChildScrollView(child: Column(children: [
+                    for (final ayah in ayahs) ...[
+                      if (ayah['number'] == 1) ...[
+                        Padding(padding: const EdgeInsets.only(top: 5, bottom: 4), child: Text('سُورَةُ ${quranSurahNames[(ayah['surah'] as int) - 1]}', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18))),
+                        if (ayah['surah'] != 1 && ayah['surah'] != 9)
+                          const Padding(padding: EdgeInsets.only(bottom: 5), child: Text('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', style: TextStyle(color: Colors.black, fontSize: 19))),
+                      ],
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text.rich(TextSpan(children: [
+                          ..._colorAllah(ayah['text'] as String),
+                          TextSpan(text: ' ﴿${ayah['number']}﴾ '),
+                        ]), textAlign: TextAlign.justify, style: const TextStyle(fontSize: 21, height: 1.85, color: Colors.black)),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text('— ${page['page']} —', style: const TextStyle(color: Colors.black54)),
+                  ])),
+                );
+              },
+            )),
+            SafeArea(top: false, child: Row(children: [
+              IconButton(onPressed: index == 0 ? null : () => controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_right)),
+              Expanded(child: Slider(value: index.toDouble(), min: 0, max: 603, divisions: 603, onChanged: (v) => controller.jumpToPage(v.round()), activeColor: green)),
+              IconButton(onPressed: index >= 603 ? null : () => controller.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_left)),
+            ])),
+          ]);
+        },
+      ),
+    ),
+  );
+}
+
 class _ContinuousReaderData {
   final List<Map<String, dynamic>> ayahs;
   final Map<String, int> pageStarts;
@@ -682,7 +822,7 @@ const after=[
  Dh('سُورَةُ الْإِخْلَاصِ: قُلْ هُوَ اللَّهُ أَحَدٌ، اللَّهُ الصَّمَدُ، لَمْ يَلِدْ وَلَمْ يُولَدْ، وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ.',1),
  Dh('سُورَةُ الْفَلَقِ: قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِنْ شَرِّ مَا خَلَقَ ۝ وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ.',1),
  Dh('سُورَةُ النَّاسِ: قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ.',1),
- Dh('بَعْدَ صَلَاةِ الْمَغْرِبِ: آمَنَ الرَّسُولُ بِمَا أُنْزِلَ إِلَيْهِ مِنْ رَبِّهِ وَالْمُؤْمِنُونَ ۚ كُلٌّ آمَنَ بِاللَّهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ لَا نُفَرِّقُ بَيْنَ أَحَدٍ مِنْ رُسُلِهِ ۚ وَقَالُوا سَمِعْنَا وَأَطَعْنَا غُفْرَانَكَ رَبَّنَا وَإِلَيْكَ الْمَصِيرُ ۝ لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا ۚ لَهَا مَا كَسَبَتْ وَعَلَيْهَا مَا اكْتَسَبَتْ ۗ رَبَّنَا لَا تُؤَاخِذْنَا إِنْ نَسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِنْ قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ ۖ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنْتَ مَوْلَانَا فَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ.',1),
+ Dh('لا إله إلا الله وحده لا شريك له، له الملك وله الحمد، يحيي ويميت، وهو على كل شيء قدير.',10),
 ];
 class DhikrPage extends StatefulWidget{final bool after;const DhikrPage({super.key,required this.after});@override State<DhikrPage> createState()=>_DhikrState();}
 class _DhikrState extends State<DhikrPage>{
@@ -723,6 +863,7 @@ class _TasbeehState extends State<TasbeehPage>{
 }
 class Entry{final String title,body;const Entry(this.title,this.body);}
 const duas=[
+Entry('دعاء دخول السوق','لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، يُحْيِي وَيُمِيتُ، وَهُوَ حَيٌّ لَا يَمُوتُ، بِيَدِهِ الْخَيْرُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.'),
 Entry('دعاء جامع','رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ. — البقرة: 201'),
 Entry('الهداية والثبات','رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِنْ لَدُنْكَ رَحْمَةً إِنَّكَ أَنْتَ الْوَهَّابُ. — آل عمران: 8'),
 Entry('المغفرة','رَبَّنَا ظَلَمْنَا أَنْفُسَنَا وَإِنْ لَمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ. — الأعراف: 23'),
@@ -1011,6 +1152,44 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                 },
               )),
   ]);
+}
+
+
+class StoriesPage extends StatelessWidget {
+  const StoriesPage({super.key});
+  @override
+  Widget build(BuildContext context) => ListView.builder(
+    padding: const EdgeInsets.all(12),
+    itemCount: stories.length,
+    itemBuilder: (context, index) {
+      final story = stories[index];
+      return Card(
+        child: ListTile(
+          leading: CircleAvatar(child: Text('${index + 1}')),
+          title: Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold, color: green)),
+          subtitle: const Text('اضغط لقراءة القصة'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StoryDetailPage(story: story))),
+        ),
+      );
+    },
+  );
+}
+
+class StoryDetailPage extends StatelessWidget {
+  final Entry story;
+  const StoryDetailPage({super.key, required this.story});
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: ListView(padding: const EdgeInsets.all(20), children: [
+      Text(story.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: green)),
+      const Divider(height: 24),
+      SelectableText(story.body, style: const TextStyle(fontSize: 19, height: 2)),
+      const SizedBox(height: 18),
+      const Text('المعلومات المعروضة موجزة ومبنية على ما ورد في القرآن الكريم؛ ولا تُضاف تفاصيل غير ثابتة.', style: TextStyle(color: Colors.black54, height: 1.7)),
+    ]),
+  );
 }
 
 class EntriesPage extends StatelessWidget{final List<Entry> items;const EntriesPage({super.key,required this.items});@override Widget build(BuildContext c)=>ListView.builder(padding:const EdgeInsets.all(12),itemCount:items.length,itemBuilder:(c,i)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(items[i].title,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),const SizedBox(height:8),Text(items[i].body,style:const TextStyle(fontSize:18,height:1.8))]))));}
