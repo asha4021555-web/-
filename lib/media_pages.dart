@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:video_player/video_player.dart';
 
-const _liveQuranUrl = 'https://www.youtube.com/embed/kYqGbBqmp8g?autoplay=1';
-const _liveSunnahUrl = 'https://www.youtube.com/embed/9A1S0xAPVIs?autoplay=1';
-const _abdulbasitMuallimUrl = 'https://alkabbah.com/recitations/playlist/352651/aabd-albast-maalm-trdyd-alatfal-almshf-almaalm-mshf-mksm-agzaaa-kaml-aabd-alsmd';
+const _liveQuranUrl = 'https://win.holol.com/live/quran/playlist.m3u8';
+const _liveSunnahUrl = 'https://win.holol.com/live/sunnah/playlist.m3u8';
 
 class LiveChannelsPage extends StatelessWidget {
   const LiveChannelsPage({super.key});
@@ -14,15 +13,17 @@ class LiveChannelsPage extends StatelessWidget {
     children: [
       const Padding(
         padding: EdgeInsets.all(8),
-        child: Text('بث مباشر عبر الإنترنت من القنوات الرسمية السعودية.',
-          style: TextStyle(fontSize: 15, height: 1.7)),
+        child: Text(
+          'بث القناتين مباشرة داخل التطبيق، من غير فتح يوتيوب.',
+          style: TextStyle(fontSize: 15, height: 1.7),
+        ),
       ),
       _MediaCard(
         icon: Icons.mosque,
         title: 'قناة القرآن الكريم - الحرم المكي',
-        subtitle: 'بث مباشر من المسجد الحرام بمكة المكرمة',
+        subtitle: 'بث مباشر من المسجد الحرام',
         onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const _OnlineMediaPlayerPage(
+          builder: (_) => const _LivePlayerPage(
             title: 'قناة القرآن الكريم - الحرم المكي',
             url: _liveQuranUrl,
           ),
@@ -31,9 +32,9 @@ class LiveChannelsPage extends StatelessWidget {
       _MediaCard(
         icon: Icons.auto_stories,
         title: 'قناة السنة النبوية - المسجد النبوي',
-        subtitle: 'بث مباشر من المسجد النبوي بالمدينة المنورة',
+        subtitle: 'بث مباشر من المسجد النبوي',
         onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const _OnlineMediaPlayerPage(
+          builder: (_) => const _LivePlayerPage(
             title: 'قناة السنة النبوية',
             url: _liveSunnahUrl,
           ),
@@ -47,29 +48,37 @@ class AbdulbasitMuallimPage extends StatelessWidget {
   const AbdulbasitMuallimPage({super.key});
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(12),
-    children: [
-      const Card(child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          'المصحف المعلم للشيخ عبد الباسط عبد الصمد مع ترديد الأطفال. '
-          'يحتاج إلى اتصال بالإنترنت، ويمكن تشغيل الأجزاء من القائمة.',
-          style: TextStyle(height: 1.8),
-        ),
-      )),
-      _MediaCard(
-        icon: Icons.play_circle_fill,
-        title: 'تشغيل المصحف المعلم',
-        subtitle: 'عبد الباسط عبد الصمد - حفص عن عاصم - ترديد الأطفال',
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => const _OnlineMediaPlayerPage(
-            title: 'المصحف المعلم - عبد الباسط',
-            url: _abdulbasitMuallimUrl,
+  Widget build(BuildContext context) => const Center(
+    child: Padding(
+      padding: EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.library_music, size: 52, color: Color(0xFF493326)),
+          SizedBox(height: 14),
+          Text(
+            'المصحف المعلم - عبد الباسط عبد الصمد',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF493326),
+            ),
           ),
-        )),
+          SizedBox(height: 10),
+          Text(
+            'ترديد الأطفال - حفص عن عاصم',
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'لن نشغّل صفحة خارجية أو إعلانات. جاري تجهيز روابط ملفات الصوت المباشرة حتى يعمل المصحف من مشغّل نور الإسلام نفسه.',
+            textAlign: TextAlign.center,
+            style: TextStyle(height: 1.8),
+          ),
+        ],
       ),
-    ],
+    ),
   );
 }
 
@@ -78,8 +87,12 @@ class _MediaCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  const _MediaCard({required this.icon, required this.title,
-    required this.subtitle, required this.onTap});
+  const _MediaCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => Card(
@@ -101,36 +114,43 @@ class _MediaCard extends StatelessWidget {
   );
 }
 
-class _OnlineMediaPlayerPage extends StatefulWidget {
+class _LivePlayerPage extends StatefulWidget {
   final String title;
   final String url;
-  const _OnlineMediaPlayerPage({required this.title, required this.url});
+  const _LivePlayerPage({required this.title, required this.url});
 
   @override
-  State<_OnlineMediaPlayerPage> createState() => _OnlineMediaPlayerPageState();
+  State<_LivePlayerPage> createState() => _LivePlayerPageState();
 }
 
-class _OnlineMediaPlayerPageState extends State<_OnlineMediaPlayerPage> {
-  late final WebViewController _controller;
-  bool _loading = true;
+class _LivePlayerPageState extends State<_LivePlayerPage> {
+  late final VideoPlayerController _player;
   String? _error;
+  bool _ready = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF5F0E6))
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (_) { if (mounted) setState(() { _loading = true; _error = null; }); },
-        onPageFinished: (_) { if (mounted) setState(() => _loading = false); },
-        onWebResourceError: (error) {
-          if (error.isForMainFrame == true && mounted) {
-            setState(() { _loading = false; _error = 'تعذر تحميل المحتوى. تحقق من اتصال الإنترنت ثم أعد المحاولة.'; });
-          }
-        },
-      ))
-      ..loadRequest(Uri.parse(widget.url));
+    _player = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      await _player.initialize();
+      if (!mounted) return;
+      setState(() => _ready = true);
+      await _player.play();
+    } catch (_) {
+      if (mounted) setState(() => _error =
+        'تعذر تشغيل البث حاليًا. تحقق من الإنترنت وحاول مرة أخرى.');
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
   }
 
   @override
@@ -139,35 +159,60 @@ class _OnlineMediaPlayerPageState extends State<_OnlineMediaPlayerPage> {
       title: Text(widget.title),
       backgroundColor: const Color(0xFF493326),
       foregroundColor: Colors.white,
-      actions: [
-        IconButton(
-          tooltip: 'إعادة التحميل',
-          icon: const Icon(Icons.refresh),
-          onPressed: () => _controller.reload(),
-        ),
-      ],
     ),
-    body: Stack(children: [
-      WebViewWidget(controller: _controller),
-      if (_loading) const Align(
-        alignment: Alignment.topCenter,
-        child: LinearProgressIndicator(color: Color(0xFFE8C77B)),
-      ),
-      if (_error != null) Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.wifi_off, size: 42, color: Color(0xFF493326)),
-            const SizedBox(height: 12),
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () => _controller.reload(),
-              child: const Text('إعادة المحاولة'),
+    body: Center(
+      child: _error != null
+        ? Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off, size: 44),
+                const SizedBox(height: 12),
+                Text(_error!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () {
+                    setState(() { _error = null; _ready = false; });
+                    _initialize();
+                  },
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
             ),
-          ]),
-        ),
-      ),
-    ]),
+          )
+        : !_ready
+          ? const CircularProgressIndicator()
+          : AspectRatio(
+              aspectRatio: _player.value.aspectRatio,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  VideoPlayer(_player),
+                  VideoProgressIndicator(
+                    _player,
+                    allowScrubbing: false,
+                    colors: const VideoProgressColors(
+                      playedColor: Color(0xFFE8C77B),
+                      bufferedColor: Colors.white38,
+                      backgroundColor: Colors.black26,
+                    ),
+                  ),
+                  Center(
+                    child: IconButton.filled(
+                      iconSize: 38,
+                      onPressed: () => setState(() {
+                        _player.value.isPlaying
+                          ? _player.pause()
+                          : _player.play();
+                      }),
+                      icon: Icon(_player.value.isPlaying
+                        ? Icons.pause : Icons.play_arrow),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    ),
   );
 }
