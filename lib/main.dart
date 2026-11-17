@@ -831,6 +831,7 @@ const after=[
  Dh('سُورَةُ النَّاسِ: قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ.',1),
  Dh('يُقَالُ بَعْدَ صَلَاتَيِ الصُّبْحِ وَالْمَغْرِبِ: لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، يُحْيِي وَيُمِيتُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.',10),
 ];
+const dhikrOrder=[2,32,3,4,5,26,6,8,31,10,7,22,23,24,11,12,13,14,25,1,30,19,18,15,16,17,27,28,20,29,9,21];
 class DhikrPage extends StatefulWidget{final bool after;const DhikrPage({super.key,required this.after});@override State<DhikrPage> createState()=>_DhikrState();}
 class _DhikrState extends State<DhikrPage>{
  bool isEvening=false;
@@ -838,7 +839,9 @@ class _DhikrState extends State<DhikrPage>{
  List<int> counts=[];
  List<Dh> get data=>widget.after
   ?after.map((d)=>(d.t.startsWith('سُورَةُ الْإِخْلَاصِ')||d.t.startsWith('سُورَةُ الْفَلَقِ')||d.t.startsWith('سُورَةُ النَّاسِ'))?Dh(d.t,afterFajrMaghrib?3:1):d).toList()
-  :(isEvening?evening:morning);
+  :(isEvening
+    ? [for(final id in dhikrOrder) evening[id-1]]
+    : [for(final id in dhikrOrder) if(id!=30 && id!=32) morning[id<=20?id-1:(id==31?29:id-1)]]);
  @override void initState(){super.initState();counts=List<int>.filled(data.length,0);}
  void changePeriod(bool value){setState((){isEvening=value;counts=List<int>.filled(data.length,0);});}
  void changeAfterPrayer(bool value){setState((){afterFajrMaghrib=value;counts=List<int>.filled(data.length,0);});}
