@@ -124,7 +124,7 @@ class HijriCalendarPage extends StatelessWidget {
           Row(children:[for(final weekday in weekdays)Expanded(child:Center(child:Text(weekday,style:const TextStyle(fontSize:10,color:Colors.black54,fontWeight:FontWeight.bold))))]),
           const SizedBox(height:5),
           Wrap(spacing:0,runSpacing:6,children:[
-            for(var blank=0;blank<leading;blank++)const SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40),
+            for(var blank=0;blank<leading;blank++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40),
             for(var day=1;day<=days;day++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40,child:Center(child:Container(width:32,height:32,alignment:Alignment.center,decoration:BoxDecoration(color:Colors.green.withValues(alpha:.07),borderRadius:BorderRadius.circular(8)),child:Text(day.toString())))),
           ]),
           const SizedBox(height:4),Text(days.toString()+' يومًا',style:const TextStyle(fontSize:11,color:Colors.black54)),
