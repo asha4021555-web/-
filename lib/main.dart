@@ -379,7 +379,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
 
   Future<_ContinuousReaderData> _loadData() async {
     final rawText = await rootBundle.loadString('assets/quran-uthmani.txt');
-    final allAyahs = rawText.split('\\n');
+    final allAyahs = rawText.split('\n');
     if (allAyahs.length != 6236) {
       throw Exception('ملف القرآن غير مكتمل: ${allAyahs.length} آية');
     }
