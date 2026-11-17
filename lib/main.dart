@@ -827,11 +827,20 @@ const after=[
 class DhikrPage extends StatefulWidget{final bool after;const DhikrPage({super.key,required this.after});@override State<DhikrPage> createState()=>_DhikrState();}
 class _DhikrState extends State<DhikrPage>{
  bool isEvening=false;
+ bool afterFajrMaghrib=false;
  List<int> counts=[];
- List<Dh> get data=>widget.after?after:(isEvening?evening:morning);
+ List<Dh> get data=>widget.after
+  ?after.map((d)=>(d.t.startsWith('سُورَةُ الْإِخْلَاصِ')||d.t.startsWith('سُورَةُ الْفَلَقِ')||d.t.startsWith('سُورَةُ النَّاسِ'))?Dh(d.t,afterFajrMaghrib?3:1):d).toList()
+  :(isEvening?evening:morning);
  @override void initState(){super.initState();counts=List<int>.filled(data.length,0);}
  void changePeriod(bool value){setState((){isEvening=value;counts=List<int>.filled(data.length,0);});}
+ void changeAfterPrayer(bool value){setState((){afterFajrMaghrib=value;counts=List<int>.filled(data.length,0);});}
  @override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.all(12),children:[
+  if(widget.after)Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[
+   Expanded(child:ChoiceChip(label:const Center(child:Text('الفجر والمغرب')),selected:afterFajrMaghrib,onSelected:(_)=>changeAfterPrayer(true))),
+   const SizedBox(width:8),
+   Expanded(child:ChoiceChip(label:const Center(child:Text('باقي الصلوات')),selected:!afterFajrMaghrib,onSelected:(_)=>changeAfterPrayer(false))),
+  ])),
   if(!widget.after)Padding(padding:const EdgeInsets.only(bottom:12),child:Row(children:[
    Expanded(child:ChoiceChip(label:const Center(child:Text('أذكار الصباح')),selected:!isEvening,onSelected:(_)=>changePeriod(false))),
    const SizedBox(width:8),
