@@ -10,7 +10,7 @@ on:
       - '.github/workflows/build-apk.yml'
 
 concurrency:
-  group: noor-al-islam-android-build
+  group: noor-al-islam-android-build-v2
   cancel-in-progress: true
 
 permissions:
