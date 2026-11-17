@@ -24,21 +24,32 @@ class _TafsirPageState extends State<TafsirPage> {
     final uri = Uri.parse('https://quranenc.com/api/v1/tafsir/sura/' + key + '/' + surah.toString());
     final response = await http.get(uri).timeout(const Duration(seconds: 25));
     if (response.statusCode != 200) throw Exception('المصدر لم يستجب. تأكد من الإنترنت ثم أعد المحاولة.');
-    final Map<int, String> result = {};
+    final Map<int, List<String>> blocksByAyah = {};
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
     final rows = decoded is Map ? decoded['result'] : decoded;
     if (rows is! List) throw Exception('صيغة بيانات التفسير غير متوقعة.');
     for (final row in rows) {
-      if (row is! Map) continue;
-      final text = (row['text'] ?? '').toString().trim();
-      final arabicCount = RegExp(r'[\u0600-\u06FF]').allMatches(text).length;
-      if (text.isEmpty || arabicCount < 8) continue;
-      final from = int.tryParse((row['from_aya'] ?? row['aya'] ?? '1').toString()) ?? 1;
-      final to = int.tryParse((row['to_aya'] ?? row['from_aya'] ?? row['aya'] ?? from).toString()) ?? from;
-      for (var n = from; n <= to; n++) { result[n] = text; }
+      if (row is! Map) throw Exception('يوجد سجل غير صالح في بيانات التفسير.');
+      final blockText = (row['text'] ?? '').toString().trim();
+      final from = int.tryParse((row['from_aya'] ?? '').toString());
+      final to = int.tryParse((row['to_aya'] ?? row['from_aya'] ?? '').toString());
+      if (blockText.isEmpty || from == null || to == null || from < 1 || to < from || to > count) {
+        throw Exception('بيانات أحد مقاطع التفسير ناقصة أو غير مكتملة.');
+      }
+      for (var n = from; n <= to; n++) {
+        final blocks = blocksByAyah.putIfAbsent(n, () => <String>[]);
+        if (!blocks.contains(blockText)) blocks.add(blockText);
+      }
     }
-    if (result.isEmpty) throw Exception('لم يصل تفسير عربي صالح لهذه السورة من المصدر.');
-    return result;
+    final missing = <int>[];
+    for (var n = 1; n <= count; n++) {
+      if (blocksByAyah[n] == null || blocksByAyah[n]!.isEmpty) missing.add(n);
+    }
+    if (missing.isNotEmpty) {
+      throw Exception('المصدر لم يوفر تفسيرًا لكل آيات السورة. الآيات غير المتاحة: ${missing.join('، ')}');
+    }
+    final result = blocksByAyah.map((n, blocks) => MapEntry(n, blocks.join('\\n\\n')));
+
   }
 
   @override Widget build(BuildContext context) {
@@ -59,7 +70,7 @@ class _TafsirPageState extends State<TafsirPage> {
         value: source, isExpanded: true, decoration: const InputDecoration(labelText: 'اختر التفسير'),
         items: const [
           DropdownMenuItem(value: 'muyassar', child: Text('التفسير الميسّر - مجمع الملك فهد')),
-          DropdownMenuItem(value: 'ibnkathir', child: Text('تفسير السعدي')),
+          DropdownMenuItem(value: 'saadi', child: Text('تفسير السعدي')),
         ],
         onChanged: (v) { if (v == null) return; setState(() { source = v; }); _load(); },
       ),
