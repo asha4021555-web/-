@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hijri_date/hijri.dart';
 import 'prayer_page.dart';
 import 'quran_data.dart';
 import 'tafsir_page.dart';
 import 'dreams_page.dart';
+final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
 void main()=>runApp(const NoorApp());
 const green=Color(0xFF176B45);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام'];
@@ -54,6 +57,7 @@ class _HomePageState extends State<HomePage> {
         const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
         const SizedBox(height:10),
         ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
+        const HijriOffsetSetting(),
         ListTile(leading:const Icon(Icons.menu_book,color:green),title:const Text('تفسير القرآن الكريم'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const TafsirPage(),'تفسير القرآن الكريم')),
         ListTile(leading:const Icon(Icons.nights_stay,color:green),title:const Text('تفسير الأحلام'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const DreamsPage(),'تفسير الأحلام')),
       ]),
@@ -70,29 +74,80 @@ class _HomePageState extends State<HomePage> {
     ));
   }
 }
-class HijriDateFooter extends StatelessWidget {
+class HijriDateFooter extends StatefulWidget {
   const HijriDateFooter({super.key});
-  @override Widget build(BuildContext context) {
-    final now=DateTime.now();
-    final jd=(1461*(now.year+4800+(now.month-14)~/12))~/4+(367*(now.month-2-12*((now.month-14)~/12)))~/12-(3*((now.year+4900+(now.month-14)~/12)~/100))~/4+now.day-32075;
-    var l=jd-1948440+10632;
-    final n=(l-1)~/10631;
-    l=l-10631*n+354;
-    final j=((10985-l)~/5316)*((50*l)~/17719)+(l~/5670)*((43*l)~/15238);
-    l=l-((30-j)~/15)*((17719*j)~/50)-(j~/16)*((15238*j)~/43)+29;
-    final month=(24*l)~/709;
-    final day=l-(709*month)~/24;
-    final year=30*n+j-30;
-    const months=['','محرم','صفر','ربيع الأول','ربيع الآخر','جمادى الأولى','جمادى الآخرة','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'];
-    return Card(child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+  @override State<HijriDateFooter> createState()=>_HijriDateFooterState();
+}
+class _HijriDateFooterState extends State<HijriDateFooter> {
+  int offset=0;
+  @override void initState(){super.initState();_load();hijriOffsetChanged.addListener(_load);}
+  Future<void> _load() async {
+    final prefs=await SharedPreferences.getInstance();
+    if(!mounted)return;
+    setState(()=>offset=prefs.getInt('hijri_offset')??0);
+  }
+  @override void dispose(){hijriOffsetChanged.removeListener(_load);super.dispose();}
+  @override Widget build(BuildContext context){
+    HijriDate.setLocal('ar');
+    final date=HijriDate.fromDate(DateTime.now().add(Duration(days:offset)));
+    return Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>HijriCalendarPage(year:date.hYear))),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
       const Icon(Icons.calendar_month,color:green,size:28),const SizedBox(width:10),
       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('التاريخ الهجري',style:TextStyle(fontWeight:FontWeight.bold,color:green)),
-        Text('\$day \${months[month]} \$year هـ',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w600)),
-        const Text('قد يختلف يومًا حسب الرؤية الشرعية',style:TextStyle(fontSize:11,color:Colors.black54)),
+        Text(date.hDay.toString()+' '+date.getLongMonthName()+' '+date.hYear.toString()+' هـ',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w600)),
+        const Text('اضغط لعرض التقويم الهجري للسنة كاملة',style:TextStyle(fontSize:11,color:Colors.black54)),
       ])),
-    ])));
+      const Icon(Icons.chevron_left),
+    ]))));
   }
+}
+class HijriCalendarPage extends StatelessWidget {
+  final int year;
+  const HijriCalendarPage({super.key,required this.year});
+  @override Widget build(BuildContext context){
+    HijriDate.setLocal('ar');
+    return Directionality(textDirection:TextDirection.rtl,child:ListView(padding:const EdgeInsets.all(12),children:[
+      Text('التقويم الهجري لعام '+year.toString()+' هـ',style:const TextStyle(fontSize:21,fontWeight:FontWeight.bold,color:green)),
+      const Padding(padding:EdgeInsets.symmetric(vertical:8),child:Text('تقويم أم القرى، ويمكن تقديم التاريخ أو تأخيره يومًا من الإعدادات لمطابقة إعلان رؤية الهلال في بلدك.',style:TextStyle(color:Colors.black54))),
+      for(var month=1;month<=12;month++) Builder(builder:(context){
+        final first=HijriDate.fromHijri(year,month,1);
+        final days=first.lengthOfMonth;
+        return Card(margin:const EdgeInsets.only(bottom:10),child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Text(first.getLongMonthName(),style:const TextStyle(fontWeight:FontWeight.bold,fontSize:18,color:green)),
+          const SizedBox(height:8),
+          Wrap(spacing:7,runSpacing:7,children:[for(var day=1;day<=days;day++)Container(width:36,height:36,alignment:Alignment.center,decoration:BoxDecoration(color:Colors.green.withValues(alpha:.07),borderRadius:BorderRadius.circular(8)),child:Text(day.toString()))]),
+          const SizedBox(height:4),Text(days.toString()+' يومًا',style:const TextStyle(fontSize:11,color:Colors.black54)),
+        ])));
+      }),
+    ]));
+  }
+}
+class HijriOffsetSetting extends StatefulWidget {
+  const HijriOffsetSetting({super.key});
+  @override State<HijriOffsetSetting> createState()=>_HijriOffsetSettingState();
+}
+class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
+  int offset=0;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load() async {final p=await SharedPreferences.getInstance();if(mounted)setState(()=>offset=p.getInt('hijri_offset')??0);}
+  Future<void> _set(int value) async {
+    final p=await SharedPreferences.getInstance();
+    await p.setInt('hijri_offset',value);
+    if(!mounted)return;
+    setState(()=>offset=value);
+    hijriOffsetChanged.value++;
+  }
+  @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    const Text('ضبط التاريخ الهجري',style:TextStyle(fontWeight:FontWeight.bold,color:green,fontSize:17)),
+    const Text('لو إعلان الهلال في مصر مختلف عن التقويم الحسابي، قدّم أو أخّر يومًا.',style:TextStyle(fontSize:12,color:Colors.black54)),
+    Row(children:[
+      Expanded(child:Text(offset==0?'بدون تعديل':offset>0?'مقدّم يومًا':'مؤخّر يومًا')),
+      IconButton(onPressed:offset>-1?()=>_set(-1):null,icon:const Icon(Icons.remove_circle_outline)),
+      Text(offset>0?'+1':offset.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
+      IconButton(onPressed:offset<1?()=>_set(1):null,icon:const Icon(Icons.add_circle_outline)),
+      TextButton(onPressed:()=>_set(0),child:const Text('إعادة')),
+    ]),
+  ])));
 }
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=quranSurahNames;static const surahAyahCounts=quranAyahCounts;@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
