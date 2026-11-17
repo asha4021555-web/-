@@ -458,6 +458,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             }
             final data = snapshot.data!;
             final items = data.ayahs;
+            var currentPage = data.initialPage;
             final children = <Widget>[
               Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -472,7 +473,6 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 ]),
               ),
             ];
-            var currentPage = data.initialPage;
             for (final ayah in items) {
               final verseNumber = ayah['numberInSurah'] as int;
               final page = data.pageStarts['${widget.number}:${verseNumber}'];
