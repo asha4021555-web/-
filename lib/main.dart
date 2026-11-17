@@ -10,9 +10,157 @@ class HomePage extends StatelessWidget{const HomePage({super.key});@override Wid
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const InfoPage(icon:Icons.access_time,title:'مواقيت الصلاة',message:'حساب المواقيت والتنبيهات لم يُفعّل بعد. يلزم تحديد الموقع واختيار طريقة الحساب وضبط أذونات الإشعارات قبل عرض أوقات دقيقة.'),_=>const InfoPage(icon:Icons.explore,title:'اتجاه القبلة',message:'تحديد اتجاه القبلة يحتاج إلى صلاحية الموقع ومستشعر اتجاه الهاتف. لم نعرض اتجاهًا تقديريًا حتى لا نعطيك اتجاهًا غير صحيح.')}));}
 class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=['الفاتحة','البقرة','آل عمران','النساء','المائدة','الأنعام','الأعراف','الأنفال','التوبة','يونس','هود','يوسف','الرعد','إبراهيم','الحجر','النحل','الإسراء','الكهف','مريم','طه','الأنبياء','الحج','المؤمنون','النور','الفرقان','الشعراء','النمل','القصص','العنكبوت','الروم','لقمان','السجدة','الأحزاب','سبأ','فاطر','يس','الصافات','ص','الزمر','غافر','فصلت','الشورى','الزخرف','الدخان','الجاثية','الأحقاف','محمد','الفتح','الحجرات','ق','الذاريات','الطور','النجم','القمر','الرحمن','الواقعة','الحديد','المجادلة','الحشر','الممتحنة','الصف','الجمعة','المنافقون','التغابن','الطلاق','التحريم','الملك','القلم','الحاقة','المعارج','نوح','الجن','المزمل','المدثر','القيامة','الإنسان','المرسلات','النبأ','النازعات','عبس','التكوير','الانفطار','المطففين','الانشقاق','البروج','الطارق','الأعلى','الغاشية','الفجر','البلد','الشمس','الليل','الضحى','الشرح','التين','العلق','القدر','البينة','الزلزلة','العاديات','القارعة','التكاثر','العصر','الهمزة','الفيل','قريش','الماعون','الكوثر','الكافرون','النصر','المسد','الإخلاص','الفلق','الناس'];@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
 
-class SurahReader extends StatefulWidget{final int number;final String name;const SurahReader({super.key,required this.number,required this.name});@override State<SurahReader> createState()=>_SurahReaderState();}
-class _SurahReaderState extends State<SurahReader>{late Future<List<dynamic>> verses;@override void initState(){super.initState();verses=loadVerses();}Future<List<dynamic>> loadVerses()async{final response=await http.get(Uri.parse('https://api.alquran.cloud/v1/surah/${widget.number}/quran-uthmani')).timeout(const Duration(seconds:25));if(response.statusCode!=200)throw Exception('تعذر تحميل السورة برمز: '+response.statusCode.toString());final body=jsonDecode(utf8.decode(response.bodyBytes)) as Map<String,dynamic>;if(body['code']!=200)throw Exception('مصدر القرآن لم يُرجع البيانات المطلوبة');return (body['data']['ayahs'] as List<dynamic>);}
-@override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text('سورة ${widget.name}'),backgroundColor:green,foregroundColor:Colors.white),body:FutureBuilder<List<dynamic>>(future:verses,builder:(context,snapshot){if(snapshot.connectionState==ConnectionState.waiting)return const Center(child:Column(mainAxisSize:MainAxisSize.min,children:[CircularProgressIndicator(),SizedBox(height:14),Text('جارٍ تحميل آيات السورة...')]));if(snapshot.hasError)return Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.wifi_off,size:48,color:green),const SizedBox(height:12),const Text('لم نتمكن من تحميل السورة. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',textAlign:TextAlign.center),const SizedBox(height:14),FilledButton(onPressed:()=>setState(()=>verses=loadVerses()),child:const Text('إعادة المحاولة'))])));final items=snapshot.data!;return ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:green,borderRadius:BorderRadius.circular(16)),child:Text('سُورَةُ ${widget.name}',textAlign:TextAlign.center,style:const TextStyle(color:Colors.white,fontSize:25,fontWeight:FontWeight.bold))),const SizedBox(height:14),Container(padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16)),child:Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:7,runSpacing:12,children:[for(final ayah in items)...[Text(ayah['text'] as String,style:const TextStyle(fontSize:25,height:2.0,color:Color(0xFF202820)),textAlign:TextAlign.center),Container(width:34,height:34,alignment:Alignment.center,decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:green)),child:Text(ayah['numberInSurah'].toString(),style:const TextStyle(color:green,fontSize:13,fontWeight:FontWeight.bold)))]]))]);})));}}
+class SurahReader extends StatefulWidget {
+  final int number;
+  final String name;
+  const SurahReader({super.key, required this.number, required this.name});
+
+  @override
+  State<SurahReader> createState() => _SurahReaderState();
+}
+
+class _SurahReaderState extends State<SurahReader> {
+  late Future<List<dynamic>> verses;
+
+  @override
+  void initState() {
+    super.initState();
+    verses = loadVerses();
+  }
+
+  Future<List<dynamic>> loadVerses() async {
+    final response = await http
+        .get(Uri.parse(
+            'https://api.alquran.cloud/v1/surah/${widget.number}/quran-uthmani'))
+        .timeout(const Duration(seconds: 25));
+    if (response.statusCode != 200) {
+      throw Exception('تعذر تحميل السورة برمز: ${response.statusCode}');
+    }
+    final body =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    if (body['code'] != 200) {
+      throw Exception('مصدر القرآن لم يُرجع البيانات المطلوبة');
+    }
+    return body['data']['ayahs'] as List<dynamic>;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('سورة ${widget.name}'),
+          backgroundColor: green,
+          foregroundColor: Colors.white,
+        ),
+        body: FutureBuilder<List<dynamic>>(
+          future: verses,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 14),
+                    Text('جارٍ تحميل آيات السورة...'),
+                  ],
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.wifi_off, size: 48, color: green),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'لم نتمكن من تحميل السورة. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 14),
+                      FilledButton(
+                        onPressed: () => setState(() => verses = loadVerses()),
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final items = snapshot.data ?? [];
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: green,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'سُورَةُ ${widget.name}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 7,
+                    runSpacing: 12,
+                    children: [
+                      for (final ayah in items) ...[
+                        Text(
+                          ayah['text'] as String,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 25, height: 2.0),
+                        ),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: green),
+                          ),
+                          child: Text(
+                            ayah['numberInSurah'].toString(),
+                            style: const TextStyle(
+                              color: green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
 const ayatKursi='اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَنْ ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ';
