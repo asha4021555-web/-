@@ -377,39 +377,25 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   }
 
   Future<_ContinuousReaderData> _loadData() async {
-    final text = await rootBundle.loadString('assets/quran-uthmani.txt');
-    final ayahs = text.split('\n');
-    if (ayahs.length != 6236) {
-      throw Exception('ملف القرآن غير مكتمل: ${ayahs.length} آية');
-    }
     final rawPages = await rootBundle.loadString('assets/quran-pages.json');
     final pageEntries = jsonDecode(rawPages) as List<dynamic>;
-    if (pageEntries.length != 604) {
-      throw Exception('بيانات صفحات المصحف غير مكتملة.');
-    }
-    final pageStarts = <String, int>{};
-    var initialPage = 1;
+    if (pageEntries.length != 604) throw Exception('بيانات صفحات المصحف غير مكتملة.');
+    var firstPage = 1;
+    var lastPage = 604;
     for (final item in pageEntries) {
       final entry = item as Map<String, dynamic>;
       final sura = entry['sura'] as int;
       final aya = entry['aya'] as int;
       final page = entry['page'] as int;
-      pageStarts['$sura:$aya'] = page;
-      if (sura < widget.number || (sura == widget.number && aya <= 1)) {
-        initialPage = page;
-      } else {
+      if (sura == widget.number && aya == 1) firstPage = page;
+      if (sura == widget.number + 1 && aya == 1) {
+        lastPage = page - 1;
         break;
       }
     }
-    final start = QuranPage.surahAyahCounts
-        .take(widget.number - 1)
-        .fold<int>(0, (sum, count) => sum + count);
-    final count = QuranPage.surahAyahCounts[widget.number - 1];
-    final items = List.generate(count, (index) => {
-      'text': ayahs[start + index],
-      'numberInSurah': index + 1,
-    });
-    return _ContinuousReaderData(items, pageStarts, initialPage);
+    if (widget.number == 114) lastPage = 604;
+    if (lastPage < firstPage) lastPage = firstPage;
+    return _ContinuousReaderData(firstPage, lastPage);
   }
 
   void _startScrolling() {
@@ -461,61 +447,31 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               return Center(child: Text('تعذر تحميل القراءة المتتابعة: ${snapshot.error}'));
             }
             final data = snapshot.data!;
-            final items = data.ayahs;
-            var currentPage = data.initialPage;
             final children = <Widget>[
               Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: green, borderRadius: BorderRadius.circular(14)),
                 child: Column(children: [
-                  Text('سُورَةُ ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  const Text('وضع مستقل عن المصحف الأصلي • تمرير مستمر بين الصفحات', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text('قرآن كريم • سورة ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('بداية السورة في الصفحة $currentPage', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  const Text('تمرير رأسي متواصل بين صور الصفحات', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ]),
               ),
-            ];
-            for (final ayah in items) {
-              final verseNumber = ayah['numberInSurah'] as int;
-              final page = data.pageStarts['${widget.number}:${verseNumber}'];
-              if (page != null && page != currentPage) {
-                children.add(Container(
-                  margin: const EdgeInsets.symmetric(vertical: 18),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: green.withValues(alpha: 0.07),
-                    border: Border.symmetric(horizontal: BorderSide(color: green.withValues(alpha: 0.35), width: 1)),
+              for (var page = data.firstPage; page <= data.lastPage; page++)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
+                  child: Image.network(
+                    'https://raw.githubusercontent.com/Miftah-Fentaw/Quran_webp/main/png/$page.png',
+                    fit: BoxFit.fitWidth,
+                    width: double.infinity,
+                    loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox(height: 360, child: Center(child: CircularProgressIndicator(color: green))),
+                    errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر تحميل صورة الصفحة $page. تحقق من الإنترنت.'))),
                   ),
-                  child: Row(children: [
-                    const Expanded(child: Divider(color: green)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('نهاية الصفحة ${currentPage}  •  الصفحة ${page}', style: const TextStyle(color: green, fontWeight: FontWeight.bold, fontSize: 12)),
-                    ),
-                    const Expanded(child: Divider(color: green)),
-                  ]),
-                ));
-                currentPage = page;
-              }
-              children.add(Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-                child: Text.rich(
-                  TextSpan(children: [
-                    TextSpan(text: ayah['text'] as String),
-                    const TextSpan(text: '  '),
-                    WidgetSpan(alignment: PlaceholderAlignment.middle, child: Container(
-                      width: 27, height: 27, alignment: Alignment.center,
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: green)),
-                      child: Text(verseNumber.toString(), style: const TextStyle(color: green, fontSize: 11)),
-                    )),
-                  ]),
-                  textAlign: TextAlign.justify,
-                  style: const TextStyle(fontSize: 25, height: 2.15, color: Colors.black87),
                 ),
-              ));
-            }
+            ];
             return Column(children: [
               Expanded(child: ListView(
                 controller: _scrollController,
@@ -767,10 +723,9 @@ class _MushafBookReaderState extends State<MushafBookReader> {
 }
 
 class _ContinuousReaderData {
-  final List<Map<String, dynamic>> ayahs;
-  final Map<String, int> pageStarts;
-  final int initialPage;
-  const _ContinuousReaderData(this.ayahs, this.pageStarts, this.initialPage);
+  final int firstPage;
+  final int lastPage;
+  const _ContinuousReaderData(this.firstPage, this.lastPage);
 }
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
