@@ -72,7 +72,43 @@ Future<Position> _getPosition() async {
   if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
     throw Exception('اسمح للتطبيق باستخدام الموقع لحساب المواقيت.');
   }
-  return Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+  return Geolocator.getCurrentPosition(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.best,
+      timeLimit: Duration(seconds: 25),
+    ),
+  );
+}
+
+Future<String> _reverseGeocode(double latitude, double longitude) async {
+  final uri = Uri.https('nominatim.openstreetmap.org', '/reverse', {
+    'format': 'jsonv2',
+    'lat': latitude.toString(),
+    'lon': longitude.toString(),
+    'zoom': '14',
+    'addressdetails': '1',
+  });
+  final response = await http.get(uri, headers: const {
+    'User-Agent': 'NoorAlIslam/1.0 (Android prayer times app)',
+    'Accept-Language': 'ar',
+  }).timeout(const Duration(seconds: 12));
+  if (response.statusCode != 200) {
+    throw Exception('تعذر تحويل إحداثيات GPS إلى اسم مدينة (HTTP ${response.statusCode}).');
+  }
+  final data = jsonDecode(response.body) as Map<String, dynamic>;
+  final address = data['address'] as Map<String, dynamic>? ?? {};
+  final parts = [
+    address['city'],
+    address['town'],
+    address['village'],
+    address['municipality'],
+    address['county'],
+    address['state'],
+    address['country'],
+  ].where((value) => value != null && value.toString().trim().isNotEmpty)
+   .map((value) => value.toString().trim()).toList();
+  if (parts.isEmpty) throw Exception('تم تحديد الإحداثيات لكن لم نتمكن من معرفة اسم المدينة.');
+  return parts.toSet().join('، ');
 }
 
 Future<void> _initAlerts() async {
@@ -245,7 +281,18 @@ class _PrayerPageState extends State<PrayerPage> {
     setState(() { loading=true; error=null; });
     try {
       final p=await _getPosition();
-      await _saveCoordinates(Coordinates(p.latitude,p.longitude),'الموقع الحالي');
+      String name;
+      try {
+        name = await _reverseGeocode(p.latitude, p.longitude);
+      } catch (_) {
+        name = 'موقعي الحالي (${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)})';
+      }
+      await _saveCoordinates(Coordinates(p.latitude,p.longitude),name);
+      if (mounted && name.startsWith('موقعي الحالي')) {
+        _msg('تم تحديد موقعك بالإحداثيات، لكن تعذر جلب اسم المدينة. تأكد من الإنترنت.');
+      } else if (mounted) {
+        _msg('تم تحديد موقعك: $name');
+      }
     } catch(e) {
       if(mounted)setState(()=>error=e.toString().replaceFirst('Exception: ',''));
     } finally {if(mounted)setState(()=>loading=false);}
@@ -272,13 +319,17 @@ class _PrayerPageState extends State<PrayerPage> {
               final uri = Uri.https('geocoding-api.open-meteo.com', '/v1/search', {
                 'name': query, 'count': '20', 'language': 'ar', 'format': 'json',
               });
-              final response = await http.get(uri).timeout(const Duration(seconds: 15));
-              if (response.statusCode != 200) throw Exception('تعذر الاتصال بخدمة البحث عن المدن.');
+              final response = await http.get(uri, headers: const {
+                'User-Agent': 'NoorAlIslam/1.0',
+              }).timeout(const Duration(seconds: 20));
+              if (response.statusCode != 200) {
+                throw Exception('خدمة البحث ردّت بالرمز ${response.statusCode}.');
+              }
               final data = jsonDecode(response.body) as Map<String, dynamic>;
               final items = (data['results'] as List<dynamic>? ?? []);
               setDialogState(() {
                 results = items.whereType<Map<String, dynamic>>().toList();
-                if (results.isEmpty) searchError = 'لم نعثر على مدينة بهذا الاسم. جرّب كتابة الاسم بالإنجليزية أو اسم الدولة.';
+                if (results.isEmpty) searchError = 'لم نعثر على مدينة بهذا الاسم. جرّب الاسم بالإنجليزية أو اكتب اسم مدينة أكبر قريبة منها.';
               });
             } catch (e) {
               setDialogState(() => searchError = 'تعذر البحث الآن. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.');
