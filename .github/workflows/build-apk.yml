@@ -28,6 +28,27 @@ jobs:
       - name: Generate Android platform files
         run: flutter create --platforms=android --org com.nooralislam .
 
+      - name: Enable Java API desugaring for scheduled notifications
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle.kts')
+          if p.exists():
+              s = p.read_text()
+              if 'isCoreLibraryDesugaringEnabled' not in s:
+                  s = s.replace('compileOptions {', 'compileOptions {\\n        isCoreLibraryDesugaringEnabled = true', 1)
+              if 'coreLibraryDesugaring(' not in s:
+                  s = s.replace('dependencies {', 'dependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")', 1)
+          else:
+              p = Path('android/app/build.gradle')
+              s = p.read_text()
+              if 'coreLibraryDesugaringEnabled true' not in s:
+                  s = s.replace('compileOptions {', 'compileOptions {\\n        coreLibraryDesugaringEnabled true', 1)
+              if 'coreLibraryDesugaring ' not in s:
+                  s = s.replace('dependencies {', "dependencies {\\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'", 1)
+          p.write_text(s)
+          PY
+
       - name: Bundle the complete verified Uthmani Quran text
         run: |
           mkdir -p assets
