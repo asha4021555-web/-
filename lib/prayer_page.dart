@@ -127,13 +127,14 @@ class _PrayerPageState extends State<PrayerPage> {
     if (alerts) await _refresh();
   }
   Future<void> _chooseAdhan() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.audio, withData: true);
-    if (result == null || result.files.isEmpty || result.files.single.bytes == null) return;
-    final picked = result.files.single;
+    final result = await FilePicker.pickFile(type: FileType.audio);
+    if (result == null) return;
+    final picked = result;
+    final bytes = await picked.readAsBytes();
     final ext = picked.extension ?? 'audio';
     final dir = await getApplicationDocumentsDirectory();
     final path = dir.path + '/adhan_' + DateTime.now().millisecondsSinceEpoch.toString() + '.' + ext;
-    final file = await File(path).writeAsBytes(picked.bytes!, flush: true);
+    final file = await File(path).writeAsBytes(bytes, flush: true);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('adhan_audio_path', file.path);
     if (!mounted) return;
