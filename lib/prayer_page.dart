@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:async';
 import 'package:adhan/adhan.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
@@ -249,6 +251,93 @@ class _PrayerPageState extends State<PrayerPage> {
     final c=_knownCities[city];
     if(c!=null)await _saveCoordinates(c,city);
   }
+  Future<void> _searchWorldCity() async {
+    final controller = TextEditingController();
+    List<Map<String, dynamic>> results = [];
+    bool searching = false;
+    String? searchError;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> search() async {
+            final query = controller.text.trim();
+            if (query.isEmpty) return;
+            setDialogState(() { searching = true; searchError = null; results = []; });
+            try {
+              final uri = Uri.https('geocoding-api.open-meteo.com', '/v1/search', {
+                'name': query, 'count': '20', 'language': 'ar', 'format': 'json',
+              });
+              final response = await http.get(uri).timeout(const Duration(seconds: 15));
+              if (response.statusCode != 200) throw Exception('تعذر الاتصال بخدمة البحث عن المدن.');
+              final data = jsonDecode(response.body) as Map<String, dynamic>;
+              final items = (data['results'] as List<dynamic>? ?? []);
+              setDialogState(() {
+                results = items.whereType<Map<String, dynamic>>().toList();
+                if (results.isEmpty) searchError = 'لم نعثر على مدينة بهذا الاسم. جرّب كتابة الاسم بالإنجليزية أو اسم الدولة.';
+              });
+            } catch (e) {
+              setDialogState(() => searchError = 'تعذر البحث الآن. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.');
+            } finally {
+              setDialogState(() => searching = false);
+            }
+          }
+          return AlertDialog(
+            title: const Text('اختيار مدينة من العالم'),
+            content: SizedBox(
+              width: 480,
+              height: 420,
+              child: Column(children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => search(),
+                  decoration: InputDecoration(
+                    hintText: 'اكتب اسم المدينة أو الدولة',
+                    suffixIcon: IconButton(
+                      onPressed: searching ? null : search,
+                      icon: const Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (searching) const LinearProgressIndicator(),
+                if (searchError != null) Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(searchError!, style: const TextStyle(color: Colors.red)),
+                ),
+                Expanded(child: ListView.builder(
+                  itemCount: results.length,
+                  itemBuilder: (context, index) {
+                    final item = results[index];
+                    final name = (item['name'] ?? '').toString();
+                    final country = (item['country'] ?? '').toString();
+                    final admin = (item['admin1'] ?? '').toString();
+                    final lat = (item['latitude'] as num?)?.toDouble();
+                    final lon = (item['longitude'] as num?)?.toDouble();
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.location_city, color: _green),
+                      title: Text(name),
+                      subtitle: Text([admin, country].where((v) => v.isNotEmpty).join('، ')),
+                      onTap: lat == null || lon == null ? null : () {
+                        Navigator.pop(dialogContext);
+                        _saveCoordinates(Coordinates(lat, lon), [name, country].where((v) => v.isNotEmpty).join('، '));
+                      },
+                    );
+                  },
+                )),
+              ]),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق'))],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+  }
+
   Future<void> _manualCoordinates() async {
     final latController=TextEditingController(text:coordinates?.latitude.toString()??'');
     final lonController=TextEditingController(text:coordinates?.longitude.toString()??'');
@@ -353,6 +442,12 @@ class _PrayerPageState extends State<PrayerPage> {
         const Text('الموقع وطريقة حساب المواقيت',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
         const SizedBox(height:8),
         Text('المدينة الحالية: '+cityName,style:const TextStyle(fontWeight:FontWeight.w600)),
+        OutlinedButton.icon(
+          onPressed: _searchWorldCity,
+          icon: const Icon(Icons.public),
+          label: const Text('البحث عن مدينة في أي دولة بالعالم'),
+        ),
+        const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value:_knownCities.containsKey(cityName)?cityName:null,
           isExpanded:true,
