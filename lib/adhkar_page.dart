@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 const _green = Color(0xFF493326);
-const _gold = Color(0xFFE8C77B);
 
 class _DhikrItem {
   final String title, text, note;
