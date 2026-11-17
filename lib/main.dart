@@ -150,7 +150,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'ibnkathir'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
