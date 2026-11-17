@@ -50,9 +50,6 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height:12),
         const HijriDateFooter(),
       ]),
-      const QiblaPage(),
-      const QuranPage(),
-      const DhikrPage(after:false),
       ListView(padding:const EdgeInsets.all(16),children:[
         const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
         const SizedBox(height:10),
@@ -61,11 +58,16 @@ class _HomePageState extends State<HomePage> {
         ListTile(leading:const Icon(Icons.menu_book,color:green),title:const Text('تفسير القرآن الكريم'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const TafsirPage(),'تفسير القرآن الكريم')),
         ListTile(leading:const Icon(Icons.nights_stay,color:green),title:const Text('تفسير الأحلام'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const DreamsPage(),'تفسير الأحلام')),
       ]),
+
+      const QiblaPage(),
+      const QuranPage(),
+      const DhikrPage(after:false),
     ];
     return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
       appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),
       body:IndexedStack(index:tab,children:pages),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const[
+        NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'الرئيسية'),
         NavigationDestination(icon:Icon(Icons.settings_outlined),selectedIcon:Icon(Icons.settings),label:'الإعدادات'),
         NavigationDestination(icon:Icon(Icons.explore_outlined),selectedIcon:Icon(Icons.explore),label:'القبلة'),
         NavigationDestination(icon:Icon(Icons.menu_book_outlined),selectedIcon:Icon(Icons.menu_book),label:'القرآن'),
