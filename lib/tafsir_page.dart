@@ -20,6 +20,7 @@ class _TafsirPageState extends State<TafsirPage> {
   void _load() { setState(() { data = _fetch(); }); }
 
   Future<Map<int, String>> _fetch() async {
+    final count = quranAyahCounts[surah - 1];
     final key = source == 'muyassar' ? 'arabic_moyassar' : 'arabic_saadi';
     final uri = Uri.parse('https://quranenc.com/api/v1/tafsir/sura/' + key + '/' + surah.toString());
     final response = await http.get(uri).timeout(const Duration(seconds: 25));
@@ -49,7 +50,7 @@ class _TafsirPageState extends State<TafsirPage> {
       throw Exception('المصدر لم يوفر تفسيرًا لكل آيات السورة. الآيات غير المتاحة: ${missing.join('، ')}');
     }
     final result = blocksByAyah.map((n, blocks) => MapEntry(n, blocks.join('\\n\\n')));
-
+    return result;
   }
 
   @override Widget build(BuildContext context) {
