@@ -92,7 +92,7 @@ class _HijriDateFooterState extends State<HijriDateFooter> {
   @override Widget build(BuildContext context){
     HijriDate.setLocal('ar');
     final date=HijriDate.fromDate(DateTime.now().add(Duration(days:offset)));
-    return Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>HijriCalendarPage(year:date.hYear))),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+    return Card(child:InkWell(borderRadius:BorderRadius.circular(12),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>HijriCalendarPage(year:date.hYear,offset:offset))),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
       const Icon(Icons.calendar_month,color:green,size:28),const SizedBox(width:10),
       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('التاريخ الهجري',style:TextStyle(fontWeight:FontWeight.bold,color:green)),
@@ -105,7 +105,8 @@ class _HijriDateFooterState extends State<HijriDateFooter> {
 }
 class HijriCalendarPage extends StatelessWidget {
   final int year;
-  const HijriCalendarPage({super.key,required this.year});
+  final int offset;
+  const HijriCalendarPage({super.key,required this.year,required this.offset});
   @override Widget build(BuildContext context){
     HijriDate.setLocal('ar');
     return Directionality(textDirection:TextDirection.rtl,child:ListView(padding:const EdgeInsets.all(12),children:[
@@ -114,10 +115,18 @@ class HijriCalendarPage extends StatelessWidget {
       for(var month=1;month<=12;month++) Builder(builder:(context){
         final first=HijriDate.fromHijri(year,month,1);
         final days=first.lengthOfMonth;
+        final gregorianStart=first.hijriToGregorian(year,month,1).subtract(Duration(days:offset));
+        final leading=gregorianStart.weekday%7;
+        const weekdays=['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
         return Card(margin:const EdgeInsets.only(bottom:10),child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           Text(first.getLongMonthName(),style:const TextStyle(fontWeight:FontWeight.bold,fontSize:18,color:green)),
           const SizedBox(height:8),
-          Wrap(spacing:7,runSpacing:7,children:[for(var day=1;day<=days;day++)Container(width:36,height:36,alignment:Alignment.center,decoration:BoxDecoration(color:Colors.green.withValues(alpha:.07),borderRadius:BorderRadius.circular(8)),child:Text(day.toString()))]),
+          Row(children:[for(final weekday in weekdays)Expanded(child:Center(child:Text(weekday,style:const TextStyle(fontSize:10,color:Colors.black54,fontWeight:FontWeight.bold))))]),
+          const SizedBox(height:5),
+          Wrap(spacing:0,runSpacing:6,children:[
+            for(var blank=0;blank<leading;blank++)const SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40),
+            for(var day=1;day<=days;day++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40,child:Center(child:Container(width:32,height:32,alignment:Alignment.center,decoration:BoxDecoration(color:Colors.green.withValues(alpha:.07),borderRadius:BorderRadius.circular(8)),child:Text(day.toString())))),
+          ]),
           const SizedBox(height:4),Text(days.toString()+' يومًا',style:const TextStyle(fontSize:11,color:Colors.black54)),
         ])));
       }),
