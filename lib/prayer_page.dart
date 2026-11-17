@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'dart:math' as math;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -406,26 +408,31 @@ class _PrayerPageState extends State<PrayerPage> {
     setState(()=>audioPath=file.path);
     _msg('تم حفظ ملف الأذان داخل التطبيق. سيُستخدم بعد تفعيل تشغيل الأذان الخلفي.');
   }
+
   Future<void> _downloadHaramAdhan() async {
     if (downloadingHaram) return;
     setState(() => downloadingHaram = true);
+    final client = http.Client();
     try {
-      final uri = Uri.parse('https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_1_-_Al_Haram_Al_Maki_(%D8%B9%D9%84%D9%8A_%D8%A8%D9%86_%D8%A3%D8%AD%D9%85%D8%AF_%D9%85%D9%84%D8%A7_-_%D8%A7%D9%84%D8%AD%D8%B1%D9%85_%D8%A7%D9%84%D9%85%D9%83%D9%8A).mp3');
-      final response = await http.get(uri).timeout(const Duration(seconds: 45));
-      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
-        throw Exception('تعذر تنزيل تسجيل أذان الحرم المكي.');
-      }
+      final uri = Uri.parse('https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_HQ.mp3');
+      final request = http.Request('GET', uri)..headers['User-Agent'] = 'NoorAlIslamApp/1.0';
+      final streamed = await client.send(request).timeout(const Duration(seconds: 90));
+      if (streamed.statusCode != 200) throw Exception('HTTP ${streamed.statusCode}');
+      final bytes = await streamed.stream.toBytes().timeout(const Duration(seconds: 120));
+      if (bytes.length < 100000) throw Exception('ملف صوت غير مكتمل');
       final dir = await getApplicationDocumentsDirectory();
-      final file = await File(dir.path + '/adhan_haram_makki_ali_mala.mp3')
-          .writeAsBytes(response.bodyBytes, flush: true);
+      final file = File(dir.path + '/adhan_ali_ibn_ahmad_mala.mp3');
+      await file.writeAsBytes(bytes, flush: true);
+      if (await file.length() != bytes.length) throw Exception('لم يكتمل حفظ الملف');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('adhan_audio_path', file.path);
       if (!mounted) return;
       setState(() => audioPath = file.path);
-      _msg('تم تنزيل أذان الحرم المكي وحفظه. اضغط «تجربة الصوت» للاستماع.');
+      _msg('تم تنزيل الأذان وحفظه على الهاتف. يمكنك تشغيله دون إنترنت بعد ذلك.');
     } catch (e) {
-      _msg('تعذر تنزيل أذان الحرم المكي. تأكد من الإنترنت وحاول مرة أخرى.');
+      _msg('فشل تنزيل الأذان. تأكد من اتصال الإنترنت ثم أعد المحاولة.');
     } finally {
+      client.close();
       if (mounted) setState(() => downloadingHaram = false);
     }
   }
@@ -518,37 +525,52 @@ class _PrayerPageState extends State<PrayerPage> {
           FilledButton.tonalIcon(onPressed:audioPath==null?null:_previewAdhan,icon:const Icon(Icons.play_arrow),label:const Text('تجربة الصوت')),
           TextButton(onPressed:audioPath==null?null:_clearAudio,child:const Text('الصوت الافتراضي')),
         ]),
-        const Text('تسجيل الأذان من الحرم المكي بصوت علي بن أحمد ملا يُنزّل إلى الهاتف داخل التطبيق ويعمل دون إنترنت بعد التنزيل. التنبيهات المجدولة لا تزال تستخدم صوت إشعار أندرويد؛ تشغيل الأذان كاملًا تلقائيًا في الخلفية لم يُنفّذ بعد.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
+        const Text('نزّل ملف الأذان بالإنترنت مرة واحدة، وبعد حفظه على الهاتف يمكنك تشغيله دون إنترنت. التنبيهات المجدولة لا تزال تستخدم صوت إشعار أندرويد؛ تشغيل الأذان كاملًا تلقائيًا في الخلفية لم يُنفّذ بعد.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
       ]))),
     ]);
   }
 }
 
+
 class QiblaPage extends StatefulWidget {
-  const QiblaPage({super.key});
-  @override State<QiblaPage> createState() => _QiblaPageState();
+ const QiblaPage({super.key});
+ @override State<QiblaPage> createState()=>_QiblaPageState();
 }
-class _QiblaPageState extends State<QiblaPage> {
-  double? bearing; String? error; bool loading = false;
-  Future<void> _calculate() async {
-    setState(() { loading = true; error = null; });
-    try {
-      final c = await _configuredCoordinates();
-      final value = Qibla(c).direction;
-      if (!mounted) return;
-      setState(() { bearing = value; loading = false; });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() { error = e.toString().replaceFirst('Exception: ', ''); loading = false; });
-    }
-  }
-  @override Widget build(BuildContext context) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-    const Icon(Icons.explore, size: 64, color: _green),
-    const Text('اتجاه القبلة', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-    if (loading) const CircularProgressIndicator(),
-    if (bearing != null) Text(bearing!.toStringAsFixed(1) + '°', style: const TextStyle(fontSize: 42, color: _green, fontWeight: FontWeight.bold)),
-    if (bearing != null) const Text('الزاوية من الشمال الجغرافي، وليست اتجاه الهاتف اللحظي.'),
-    if (error != null) Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-    FilledButton.icon(onPressed: loading ? null : _calculate, icon: const Icon(Icons.my_location), label: const Text('تحديد القبلة من موقعي')),
-  ])));
+class _QiblaPageState extends State<QiblaPage>{
+ double? qibla;String? error;bool loading=false;
+ Future<void> _calculate() async {
+  setState(()=>{loading=true,error=null});
+  try{final c=await _configuredCoordinates();final value=Qibla(c).direction;if(!mounted)return;setState(()=>{qibla=value,loading=false});}
+  catch(e){if(!mounted)return;setState(()=>{error=e.toString().replaceFirst('Exception: ',''),loading=false});}
+ }
+ @override void initState(){super.initState();_calculate();}
+ @override Widget build(BuildContext context)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:StreamBuilder<CompassEvent>(
+  stream:FlutterCompass.events,builder:(context,snapshot){
+   final heading=snapshot.data?.heading;final available=heading!=null;
+   final angle=qibla==null||heading==null?0.0:(qibla!-heading)*math.pi/180;
+   return Column(mainAxisSize:MainAxisSize.min,children:[
+    const Text('بوصلة اتجاه القبلة',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),
+    const SizedBox(height:18),
+    SizedBox(width:270,height:270,child:Stack(alignment:Alignment.center,children:[
+     Container(width:260,height:260,decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xFFF8F7F0),border:Border.all(color:_green,width:5),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:10,offset:Offset(0,4))])),
+     const Positioned(top:12,child:Text('شمال',style:TextStyle(fontWeight:FontWeight.bold,color:_green))),
+     const Positioned(bottom:12,child:Text('جنوب',style:TextStyle(color:Colors.black54))),
+     const Positioned(left:12,child:Text('شرق',style:TextStyle(color:Colors.black54))),
+     const Positioned(right:12,child:Text('غرب',style:TextStyle(color:Colors.black54))),
+     if(qibla!=null&&available)Transform.rotate(angle:angle,child:const Icon(Icons.navigation,size:145,color:Color(0xFFB3261E))),
+     if(qibla==null||!available)const Icon(Icons.explore,size:110,color:Colors.black26),
+     const CircleAvatar(radius:7,backgroundColor:_green),
+     if(qibla!=null&&available)const Positioned(bottom:48,child:Text('اتجاه القبلة',style:TextStyle(color:Color(0xFFB3261E),fontWeight:FontWeight.bold))),
+    ])),
+    const SizedBox(height:14),
+    if(heading!=null)Text('اتجاه الهاتف: ${heading.toStringAsFixed(0)}° • القبلة: ${qibla?.toStringAsFixed(0)??'--'}°',style:const TextStyle(fontWeight:FontWeight.w600)),
+    if(qibla!=null&&!available)const Text('حساس البوصلة غير متاح في هذا الهاتف.',textAlign:TextAlign.center),
+    if(error!=null)Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:Colors.red)),
+    if(loading)const Padding(padding:EdgeInsets.all(8),child:CircularProgressIndicator()),
+    const SizedBox(height:10),
+    OutlinedButton.icon(onPressed:loading?null:_calculate,icon:const Icon(Icons.my_location),label:const Text('تحديث موقعي واتجاه القبلة')),
+    const Text('حرّك الهاتف ببطء؛ السهم الأحمر يتحرك مع اتجاه الجهاز نحو القبلة.',textAlign:TextAlign.center,style:TextStyle(fontSize:12,color:Colors.black54)),
+   ]);
+  },
+ )));
 }

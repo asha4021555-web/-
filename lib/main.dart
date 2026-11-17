@@ -172,6 +172,13 @@ class QuranPage extends StatelessWidget {
             builder: (_) => ContinuousQuranReader(number: i + 1, name: surahs[i]),
           )),
         ),
+        IconButton(
+          tooltip: 'مصحف مستقل بتقليب الصفحات',
+          icon: const Icon(Icons.menu_book, color: Colors.brown),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => MushafPageReader(number: i + 1, name: surahs[i]),
+          )),
+        ),
         const Icon(Icons.chevron_left),
       ]),
       onTap: () => Navigator.push(context, MaterialPageRoute(
@@ -351,7 +358,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   bool _scrolling = false;
-  double _speed = 24;
+  double _speed = 48;
   late Future<_ContinuousReaderData> _data;
 
   @override
@@ -515,7 +522,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                     Row(children: [
                       const Text('سرعة التمرير', style: TextStyle(fontWeight: FontWeight.bold)),
                       Expanded(child: Slider(
-                        value: _speed, min: 8, max: 70, divisions: 31,
+                        value: _speed, min: 10, max: 150, divisions: 35,
                         label: '${_speed.round()}',
                         activeColor: green,
                         onChanged: (value) => setState(() => _speed = value),
@@ -550,6 +557,54 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   }
 }
 
+
+class MushafPageReader extends StatefulWidget {
+ final int number; final String name;
+ const MushafPageReader({super.key,required this.number,required this.name});
+ @override State<MushafPageReader> createState()=>_MushafPageReaderState();
+}
+class _MushafPageReaderState extends State<MushafPageReader>{
+ late Future<List<Map<String,dynamic>>> futurePages; final PageController controller=PageController(); int index=0;
+ @override void initState(){super.initState();futurePages=_load();}
+ Future<List<Map<String,dynamic>>> _load() async {
+  final lines=(await rootBundle.loadString('assets/quran-uthmani.txt')).split('\n');
+  if(lines.length!=6236)throw Exception('ملف القرآن غير مكتمل');
+  final meta=jsonDecode(await rootBundle.loadString('assets/quran-pages.json')) as List<dynamic>;
+  if(meta.length!=604)throw Exception('بيانات الصفحات غير مكتملة');
+  final starts=<String,int>{};var currentPage=1;
+  for(final raw in meta){final e=raw as Map<String,dynamic>;final sn=e['sura'] as int;final an=e['aya'] as int;final pn=e['page'] as int;starts['$sn:$an']=pn;if(sn<widget.number||(sn==widget.number&&an<=1))currentPage=pn;}
+  final first=QuranPage.surahAyahCounts.take(widget.number-1).fold<int>(0,(a,b)=>a+b);final count=QuranPage.surahAyahCounts[widget.number-1];
+  final out=<Map<String,dynamic>>[];var group=<Map<String,dynamic>>[];
+  for(var i=0;i<count;i++){final n=i+1;final p=starts['${widget.number}:$n'];if(p!=null&&p!=currentPage&&group.isNotEmpty){out.add({'page':currentPage,'ayahs':group});group=<Map<String,dynamic>>[];currentPage=p;}group.add({'text':lines[first+i],'number':n});}
+  if(group.isNotEmpty)out.add({'page':currentPage,'ayahs':group});return out;
+ }
+ List<InlineSpan> _colorAllah(String text){final out=<InlineSpan>[];final re=RegExp(r'(اللَّهُ|اللَّهِ|اللَّهَ|اللَّه|الله)');var start=0;for(final m in re.allMatches(text)){if(m.start>start)out.add(TextSpan(text:text.substring(start,m.start)));out.add(TextSpan(text:m.group(0),style:const TextStyle(color:Color(0xFFB3261E),fontWeight:FontWeight.w600)));start=m.end;}if(start<text.length)out.add(TextSpan(text:text.substring(start)));return out;}
+ @override void dispose(){controller.dispose();super.dispose();}
+ @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(
+  appBar:AppBar(title:Text('مصحف ${widget.name}'),backgroundColor:green,foregroundColor:Colors.white),
+  body:FutureBuilder<List<Map<String,dynamic>>>(future:futurePages,builder:(context,snap){
+   if(snap.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());
+   if(snap.hasError)return Center(child:Text('تعذر فتح المصحف: ${snap.error}'));
+   final pages=snap.data??[];if(pages.isEmpty)return const Center(child:Text('لا توجد صفحات'));
+   return Column(children:[
+    Padding(padding:const EdgeInsets.all(8),child:Text('صفحة ${index+1} من ${pages.length} • اسحب أفقيًا لتقليب الورقة',style:const TextStyle(color:green,fontWeight:FontWeight.bold))),
+    Expanded(child:PageView.builder(controller:controller,itemCount:pages.length,onPageChanged:(v)=>setState(()=>index=v),itemBuilder:(context,i){
+     final p=pages[i];final ayahs=p['ayahs'] as List<Map<String,dynamic>>;
+     return Container(margin:const EdgeInsets.fromLTRB(10,4,10,12),padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:const Color(0xFFFFFEF8),border:Border.all(color:const Color(0xFFD7C9A8)),borderRadius:BorderRadius.circular(8),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:8,offset:Offset(0,3))]),child:SingleChildScrollView(child:Column(children:[
+      Text('سُورَةُ ${widget.name}',style:const TextStyle(color:Colors.black,fontWeight:FontWeight.bold,fontSize:19)),const Divider(height:24,color:Color(0xFFB9A77E)),
+      Text.rich(TextSpan(children:[for(final a in ayahs)...[..._colorAllah(a['text'] as String),TextSpan(text:' ﴿${a['number']}﴾  ')]]),textAlign:TextAlign.justify,textDirection:TextDirection.rtl,style:const TextStyle(fontSize:22,height:2.05,color:Colors.black)),
+      const SizedBox(height:16),Text('— ${p['page']} —',style:const TextStyle(color:Colors.black54)),
+     ])));
+    })),
+    SafeArea(top:false,child:Row(children:[
+     IconButton(onPressed:index==0?null:()=>controller.previousPage(duration:const Duration(milliseconds:300),curve:Curves.easeInOut),icon:const Icon(Icons.chevron_right)),
+     Expanded(child:Slider(value:index.toDouble(),min:0,max:(pages.length-1).toDouble(),divisions:pages.length>1?pages.length-1:null,onChanged:(v)=>controller.jumpToPage(v.round()),activeColor:green)),
+     IconButton(onPressed:index>=pages.length-1?null:()=>controller.nextPage(duration:const Duration(milliseconds:300),curve:Curves.easeInOut),icon:const Icon(Icons.chevron_left)),
+    ])),
+   ]);
+  }),
+ ));
+}
 class _ContinuousReaderData {
   final List<Map<String, dynamic>> ayahs;
   final Map<String, int> pageStarts;
@@ -608,6 +663,7 @@ const evening=[
  Dh('اللَّهُمَّ أَنْتَ رَبِّي، لَا إِلَٰهَ إِلَّا أَنْتَ، عَلَيْكَ تَوَكَّلْتُ، وَأَنْتَ رَبُّ الْعَرْشِ الْعَظِيمِ، مَا شَاءَ اللَّهُ كَانَ، وَمَا لَمْ يَشَأْ لَمْ يَكُنْ، وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ الْعَلِيِّ الْعَظِيمِ، أَعْلَمُ أَنَّ اللَّهَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، وَأَنَّ اللَّهَ قَدْ أَحَاطَ بِكُلِّ شَيْءٍ عِلْمًا، اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنْ شَرِّ نَفْسِي، وَمِنْ شَرِّ كُلِّ دَابَّةٍ أَنْتَ آخِذٌ بِنَاصِيَتِهَا، إِنَّ رَبِّي عَلَى صِرَاطٍ مُسْتَقِيمٍ.',1),
  Dh('أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ.',3),
  Dh('اللَّهُمَّ إِنِّي أَمْسَيْتُ أُشْهِدُكَ، وَأُشْهِدُ حَمَلَةَ عَرْشِكَ، وَمَلَائِكَتَكَ، وَجَمِيعَ خَلْقِكَ، أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، وَأَنَّ مُحَمَّدًا عَبْدُكَ وَرَسُولُكَ.',4),
+ Dh('آمَنَ الرَّسُولُ بِمَا أُنْزِلَ إِلَيْهِ مِنْ رَبِّهِ وَالْمُؤْمِنُونَ ۚ كُلٌّ آمَنَ بِاللَّهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ لَا نُفَرِّقُ بَيْنَ أَحَدٍ مِنْ رُسُلِهِ ۚ وَقَالُوا سَمِعْنَا وَأَطَعْنَا غُفْرَانَكَ رَبَّنَا وَإِلَيْكَ الْمَصِيرُ ۝ لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا ۚ لَهَا مَا كَسَبَتْ وَعَلَيْهَا مَا اكْتَسَبَتْ ۗ رَبَّنَا لَا تُؤَاخِذْنَا إِنْ نَسِينَا أَوْ أَخْطَأْنَا ۚ رَبَّنَا وَلَا تَحْمِلْ عَلَيْنَا إِصْرًا كَمَا حَمَلْتَهُ عَلَى الَّذِينَ مِنْ قَبْلِنَا ۚ رَبَّنَا وَلَا تُحَمِّلْنَا مَا لَا طَاقَةَ لَنَا بِهِ ۖ وَاعْفُ عَنَّا وَاغْفِرْ لَنَا وَارْحَمْنَا ۚ أَنْتَ مَوْلَانَا فَانْصُرْنَا عَلَى الْقَوْمِ الْكَافِرِينَ.',1),
 ];
 const after=[Dh('أَسْتَغْفِرُ اللَّهَ.',3),Dh('اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ.',1),Dh('سُبْحَانَ اللَّهِ.',33),Dh('الْحَمْدُ لِلَّهِ.',33),Dh('اللَّهُ أَكْبَرُ.',33)];
 class DhikrPage extends StatefulWidget{final bool after;const DhikrPage({super.key,required this.after});@override State<DhikrPage> createState()=>_DhikrState();}
@@ -635,12 +691,104 @@ class _DhikrState extends State<DhikrPage>{
   }),
  ]);
 }
+
 class TasbeehPage extends StatefulWidget{const TasbeehPage({super.key});@override State<TasbeehPage> createState()=>_TasbeehState();}
-class _TasbeehState extends State<TasbeehPage>{int count=0,target=33;String phrase='سبحان الله';@override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[DropdownButton<String>(value:phrase,isExpanded:true,items:const [DropdownMenuItem(value:'سبحان الله',child:Text('سبحان الله')),DropdownMenuItem(value:'الحمد لله',child:Text('الحمد لله')),DropdownMenuItem(value:'الله أكبر',child:Text('الله أكبر')),DropdownMenuItem(value:'أستغفر الله',child:Text('أستغفر الله')),DropdownMenuItem(value:'لا إله إلا الله',child:Text('لا إله إلا الله'))],onChanged:(v){setState((){phrase=v!;count=0;});}),Text(phrase,style:const TextStyle(fontSize:23,color:green)),Text('${count}',style:const TextStyle(fontSize:64,color:green,fontWeight:FontWeight.bold)),Text('الهدف: ${target==0?'مفتوح':target}'),Wrap(spacing:8,children:[ChoiceChip(label:const Text('33'),selected:target==33,onSelected:(_)=>setState(()=>target=33)),ChoiceChip(label:const Text('100'),selected:target==100,onSelected:(_)=>setState(()=>target=100)),ChoiceChip(label:const Text('مفتوح'),selected:target==0,onSelected:(_)=>setState(()=>target=0))]),const SizedBox(height:16),SizedBox(width:180,height:180,child:FilledButton(style:FilledButton.styleFrom(shape:const CircleBorder(),backgroundColor:green),onPressed:()=>setState(()=>count++),child:const Text('تسبيح',style:TextStyle(fontSize:28)))),TextButton(onPressed:()=>setState(()=>count=0),child:const Text('تصفير العداد')),if(target>0&&count>=target)const Text('أحسنت، وصلت للهدف!',style:TextStyle(color:green))])));}
+class _TasbeehState extends State<TasbeehPage>{
+ int count=0,target=33;String phrase='سبحان الله';
+ static const phrases=['سبحان الله','الحمد لله','الله أكبر','أستغفر الله','لا إله إلا الله','الصلاة على النبي ﷺ','سبحان الله العظيم وبحمده','لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير','أستغفر الله العظيم الذي لا إله إلا هو الحي القيوم وأتوب إليه','سبحان الله وبحمده سبحان الله العظيم','اللهم إنك عفو تحب العفو فاعف عني','سبحان الله وبحمده، عدد خلقه ورضا نفسه وزنة عرشه ومداد كلماته','سبحان الله والحمد لله ولا إله إلا الله والله أكبر','لا حول ولا قوة إلا بالله'];
+ @override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+ DropdownButton<String>(value:phrase,isExpanded:true,items:phrases.map((v)=>DropdownMenuItem(value:v,child:Text(v,maxLines:2,overflow:TextOverflow.ellipsis))).toList(),onChanged:(v){if(v!=null)setState((){phrase=v;count=0;});}),
+ const SizedBox(height:12),Text(phrase,textAlign:TextAlign.center,style:const TextStyle(fontSize:20,color:green,height:1.6)),Text('$count',style:const TextStyle(fontSize:64,color:green,fontWeight:FontWeight.bold)),Text('الهدف: ${target==0?'مفتوح':target}'),
+ Wrap(spacing:8,children:[ChoiceChip(label:const Text('33'),selected:target==33,onSelected:(_)=>setState(()=>target=33)),ChoiceChip(label:const Text('100'),selected:target==100,onSelected:(_)=>setState(()=>target=100)),ChoiceChip(label:const Text('مفتوح'),selected:target==0,onSelected:(_)=>setState(()=>target=0))]),
+ const SizedBox(height:16),SizedBox(width:180,height:180,child:FilledButton(style:FilledButton.styleFrom(shape:const CircleBorder(),backgroundColor:green),onPressed:()=>setState(()=>count++),child:const Text('تسبيح',style:TextStyle(fontSize:28)))),TextButton(onPressed:()=>setState(()=>count=0),child:const Text('تصفير العداد')),if(target>0&&count>=target)const Text('أحسنت، وصلت للهدف!',style:TextStyle(color:green))
+ ])));
+}
 class Entry{final String title,body;const Entry(this.title,this.body);}
-const duas=[Entry('دعاء جامع','رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.'),Entry('دعاء المغفرة','رَبَّنَا ظَلَمْنَا أَنْفُسَنَا وَإِنْ لَمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ.'),Entry('دعاء العلم','رَبِّ زِدْنِي عِلْمًا.'),Entry('دعاء التيسير','رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي.')];
-const hadiths=[Entry('النية','قال رسول الله ﷺ: «إنما الأعمال بالنيات، وإنما لكل امرئ ما نوى». — متفق عليه.'),Entry('الكلمة الطيبة','قال رسول الله ﷺ: «الكلمة الطيبة صدقة». — متفق عليه.'),Entry('محبة الخير','قال رسول الله ﷺ: «لا يؤمن أحدكم حتى يحب لأخيه ما يحب لنفسه». — متفق عليه.'),Entry('الرفق','قال رسول الله ﷺ: «إن الله رفيق يحب الرفق في الأمر كله». — متفق عليه.')];
-const stories=[Entry('آدم عليه السلام','خلق الله آدم عليه السلام وعلّمه الأسماء، وأسكنه الجنة، ثم تاب عليه لما تاب وأناب.'),Entry('نوح عليه السلام','دعا نوح عليه السلام قومه إلى عبادة الله زمنًا طويلًا وصبر على أذاهم، فكانت النجاة للمؤمنين في السفينة.'),Entry('إبراهيم عليه السلام','دعا إبراهيم عليه السلام إلى التوحيد، وابتلاه الله فصبر، وجعله إمامًا للناس.'),Entry('يوسف عليه السلام','ابتُلي يوسف عليه السلام بفراق أهله والسجن، ثم أكرمه الله ومكّنه في الأرض.'),Entry('موسى عليه السلام','أرسل الله موسى عليه السلام إلى فرعون، وأيّده بالآيات، ونجّاه وبني إسرائيل.'),Entry('يونس عليه السلام','نادى يونس عليه السلام ربه في الظلمات فاستجاب الله له ونجّاه.')];
+const duas=[
+Entry('دعاء جامع','رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ. — البقرة: 201'),
+Entry('الهداية والثبات','رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِنْ لَدُنْكَ رَحْمَةً إِنَّكَ أَنْتَ الْوَهَّابُ. — آل عمران: 8'),
+Entry('المغفرة','رَبَّنَا ظَلَمْنَا أَنْفُسَنَا وَإِنْ لَمْ تَغْفِرْ لَنَا وَتَرْحَمْنَا لَنَكُونَنَّ مِنَ الْخَاسِرِينَ. — الأعراف: 23'),
+Entry('العلم','رَبِّ زِدْنِي عِلْمًا. — طه: 114'),Entry('التيسير','رَبِّ اشْرَحْ لِي صَدْرِي وَيَسِّرْ لِي أَمْرِي. — طه: 25-26'),
+Entry('تفريج الكرب','لَا إِلَهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ. — الأنبياء: 87'),
+Entry('الرحمة','رَبِّ اغْفِرْ وَارْحَمْ وَأَنْتَ خَيْرُ الرَّاحِمِينَ. — المؤمنون: 118'),Entry('الوالدان','رَبِّ ارْحَمْهُمَا كَمَا رَبَّيَانِي صَغِيرًا. — الإسراء: 24'),
+Entry('الرزق','رَبِّ إِنِّي لِمَا أَنْزَلْتَ إِلَيَّ مِنْ خَيْرٍ فَقِيرٌ. — القصص: 24'),Entry('التوكل','حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ. — آل عمران: 173'),
+Entry('صلاح الذرية','رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا. — الفرقان: 74'),
+Entry('قبول العمل','رَبَّنَا تَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ. — البقرة: 127'),
+Entry('العفو والعافية','اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي الدُّنْيَا وَالْآخِرَةِ. — أبو داود'),
+Entry('الهدى والتقى','اللَّهُمَّ إِنِّي أَسْأَلُكَ الْهُدَى وَالتُّقَى وَالْعَفَافَ وَالْغِنَى. — مسلم'),
+Entry('إصلاح الدين والدنيا','اللَّهُمَّ أَصْلِحْ لِي دِينِيَ الَّذِي هُوَ عِصْمَةُ أَمْرِي، وَأَصْلِحْ لِي دُنْيَايَ الَّتِي فِيهَا مَعَاشِي، وَأَصْلِحْ لِي آخِرَتِي الَّتِي فِيهَا مَعَادِي. — مسلم'),
+Entry('الثبات','يَا مُقَلِّبَ الْقُلُوبِ ثَبِّتْ قَلْبِي عَلَى دِينِكَ. — الترمذي'),
+Entry('قضاء الدين','اللَّهُمَّ اكْفِنِي بِحَلَالِكَ عَنْ حَرَامِكَ، وَأَغْنِنِي بِفَضْلِكَ عَمَّنْ سِوَاكَ. — الترمذي'),
+Entry('الهم والحزن','اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ، وَالْعَجْزِ وَالْكَسَلِ، وَالْجُبْنِ وَالْبُخْلِ، وَضَلَعِ الدَّيْنِ وَغَلَبَةِ الرِّجَالِ. — البخاري'),
+Entry('سيد الاستغفار','اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ. — البخاري'),
+Entry('عند المصيبة','إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ، اللَّهُمَّ أْجُرْنِي فِي مُصِيبَتِي وَأَخْلِفْ لِي خَيْرًا مِنْهَا. — مسلم')
+];
+const hadiths=[
+Entry('1. الأعمال بالنيات','«إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى». — متفق عليه'),
+Entry('2. مراتب الدين','حديث جبريل في الإسلام والإيمان والإحسان والإيمان بالساعة وأماراتها. — مسلم'),
+Entry('3. أركان الإسلام','«بُنِيَ الْإِسْلَامُ عَلَى خَمْسٍ: شَهَادَةِ أَنْ لَا إِلَهَ إِلَّا اللَّهُ... وَإِقَامِ الصَّلَاةِ وَإِيتَاءِ الزَّكَاةِ وَالْحَجِّ وَصَوْمِ رَمَضَانَ». — متفق عليه'),
+Entry('4. القدر','حديث ابن مسعود في أطوار خلق الإنسان وكتابة رزقه وأجله وعمله. — متفق عليه'),
+Entry('5. رد البدع','«مَنْ أَحْدَثَ فِي أَمْرِنَا هَذَا مَا لَيْسَ مِنْهُ فَهُوَ رَدٌّ». — متفق عليه'),
+Entry('6. الحلال والحرام','«إِنَّ الْحَلَالَ بَيِّنٌ وَإِنَّ الْحَرَامَ بَيِّنٌ، وَبَيْنَهُمَا أُمُورٌ مُشْتَبِهَاتٌ». — متفق عليه'),
+Entry('7. النصيحة','«الدِّينُ النَّصِيحَةُ». قيل: لمن؟ قال: «لِلَّهِ وَلِكِتَابِهِ وَلِرَسُولِهِ وَلِأَئِمَّةِ الْمُسْلِمِينَ وَعَامَّتِهِمْ». — مسلم'),
+Entry('8. عصمة الدم','حديث «أُمِرْتُ أَنْ أُقَاتِلَ النَّاسَ...» في الشهادة والصلاة والزكاة. — متفق عليه'),
+Entry('9. اجتناب النهي','«مَا نَهَيْتُكُمْ عَنْهُ فَاجْتَنِبُوهُ، وَمَا أَمَرْتُكُمْ بِهِ فَأْتُوا مِنْهُ مَا اسْتَطَعْتُمْ». — متفق عليه'),
+Entry('10. طيب المطعم','«إِنَّ اللَّهَ طَيِّبٌ لَا يَقْبَلُ إِلَّا طَيِّبًا». — مسلم'),
+Entry('11. ترك الشبهات','«دَعْ مَا يَرِيبُكَ إِلَى مَا لَا يَرِيبُكَ». — الترمذي والنسائي'),
+Entry('12. ترك ما لا يعني','«مِنْ حُسْنِ إِسْلَامِ الْمَرْءِ تَرْكُهُ مَا لَا يَعْنِيهِ». — الترمذي'),
+Entry('13. محبة الخير','«لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ». — متفق عليه'),
+Entry('14. حرمة الدم','«لَا يَحِلُّ دَمُ امْرِئٍ مُسْلِمٍ... إِلَّا بِإِحْدَى ثَلَاثٍ». — متفق عليه'),
+Entry('15. إكرام الجار','«مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ، وَلْيُكْرِمْ جَارَهُ وَضَيْفَهُ». — متفق عليه'),
+Entry('16. ترك الغضب','«لَا تَغْضَبْ». — البخاري'),Entry('17. الإحسان','«إِنَّ اللَّهَ كَتَبَ الْإِحْسَانَ عَلَى كُلِّ شَيْءٍ». — مسلم'),
+Entry('18. التقوى','«اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ، وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا، وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ». — الترمذي'),
+Entry('19. احفظ الله','«احْفَظِ اللَّهَ يَحْفَظْكَ». — الترمذي'),Entry('20. الحياء','«إِذَا لَمْ تَسْتَحْيِ فَاصْنَعْ مَا شِئْتَ». — البخاري'),
+Entry('21. الاستقامة','«قُلْ آمَنْتُ بِاللَّهِ ثُمَّ اسْتَقِمْ». — مسلم'),Entry('22. طريق الجنة','حديث الرجل الذي سأل عن الفرائض فقال ﷺ: «أَفْلَحَ إِنْ صَدَقَ». — مسلم'),
+Entry('23. جوامع الخير','«الطُّهُورُ شَطْرُ الْإِيمَانِ... وَالصَّلَاةُ نُورٌ، وَالصَّدَقَةُ بُرْهَانٌ، وَالصَّبْرُ ضِيَاءٌ». — مسلم'),
+Entry('24. تحريم الظلم','في الحديث القدسي: «إِنِّي حَرَّمْتُ الظُّلْمَ عَلَى نَفْسِي وَجَعَلْتُهُ بَيْنَكُمْ مُحَرَّمًا». — مسلم'),
+Entry('25. أبواب الصدقة','«كُلُّ تَسْبِيحَةٍ صَدَقَةٌ، وَكُلُّ تَكْبِيرَةٍ صَدَقَةٌ». — مسلم'),
+Entry('26. المعروف صدقة','«كُلُّ سُلَامَى مِنَ النَّاسِ عَلَيْهِ صَدَقَةٌ... وَيُجْزِئُ مِنْ ذَلِكَ رَكْعَتَانِ مِنَ الضُّحَى». — مسلم'),
+Entry('27. البر والإثم','«الْبِرُّ حُسْنُ الْخُلُقِ، وَالْإِثْمُ مَا حَاكَ فِي صَدْرِكَ». — مسلم'),
+Entry('28. لزوم السنة','«عَلَيْكُمْ بِسُنَّتِي وَسُنَّةِ الْخُلَفَاءِ الرَّاشِدِينَ الْمَهْدِيِّينَ». — أبو داود والترمذي'),
+Entry('29. عمود الدين','«رَأْسُ الْأَمْرِ الْإِسْلَامُ، وَعَمُودُهُ الصَّلَاةُ». — الترمذي'),
+Entry('30. حدود الله','«إِنَّ اللَّهَ فَرَضَ فَرَائِضَ فَلَا تُضَيِّعُوهَا، وَحَدَّ حُدُودًا فَلَا تَعْتَدُوهَا». — الدارقطني'),
+Entry('31. الزهد','«ازْهَدْ فِي الدُّنْيَا يُحِبَّكَ اللَّهُ، وَازْهَدْ فِيمَا عِنْدَ النَّاسِ يُحِبَّكَ النَّاسُ». — ابن ماجه'),
+Entry('32. لا ضرر','«لَا ضَرَرَ وَلَا ضِرَارَ». — ابن ماجه والدارقطني'),
+Entry('33. البينة','«الْبَيِّنَةُ عَلَى الْمُدَّعِي وَالْيَمِينُ عَلَى مَنْ أَنْكَرَ». — البيهقي'),
+Entry('34. تغيير المنكر','«مَنْ رَأَى مِنْكُمْ مُنْكَرًا فَلْيُغَيِّرْهُ بِيَدِهِ، فَإِنْ لَمْ يَسْتَطِعْ فَبِلِسَانِهِ». — مسلم'),
+Entry('35. الأخوة','«لَا تَحَاسَدُوا وَلَا تَنَاجَشُوا وَلَا تَبَاغَضُوا... وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا». — مسلم'),
+Entry('36. قضاء الحوائج','«مَنْ نَفَّسَ عَنْ مُؤْمِنٍ كُرْبَةً... وَاللَّهُ فِي عَوْنِ الْعَبْدِ». — مسلم'),
+Entry('37. فضل الله','«إِنَّ اللَّهَ كَتَبَ الْحَسَنَاتِ وَالسَّيِّئَاتِ ثُمَّ بَيَّنَ ذَلِكَ». — متفق عليه'),
+Entry('38. التقرب إلى الله','«مَنْ عَادَى لِي وَلِيًّا فَقَدْ آذَنْتُهُ بِالْحَرْبِ». — البخاري'),
+Entry('39. التجاوز','«إِنَّ اللَّهَ تَجَاوَزَ لِي عَنْ أُمَّتِي الْخَطَأَ وَالنِّسْيَانَ وَمَا اسْتُكْرِهُوا عَلَيْهِ». — ابن ماجه'),
+Entry('40. كن غريبًا','«كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ أَوْ عَابِرُ سَبِيلٍ». — البخاري')
+];
+const stories=[
+Entry('1. آدم عليه السلام','أبو البشر، خلقه الله وعلّمه الأسماء وأسكنه الجنة، ثم تاب عليه بعد الزلة.'),
+Entry('2. إدريس عليه السلام','وصفه الله بالصديقية والنبوة ورفعة المكان، ولم يرد تفصيل ثابت طويل لقصته.'),
+Entry('3. نوح عليه السلام','دعا قومه للتوحيد زمنًا طويلًا، وصنع السفينة بأمر الله فنجّاه والمؤمنين وأغرق المكذبين.'),
+Entry('4. هود عليه السلام','أُرسل إلى عاد فدعاهم للتوحيد وترك الكبر، فأهلكهم الله بريح صرصر عاتية.'),
+Entry('5. صالح عليه السلام','أُرسل إلى ثمود وأيّده الله بالناقة، فعقروها فعاقبهم الله بالصيحة والرجفة.'),
+Entry('6. إبراهيم عليه السلام','حاجّ قومه في الأصنام وأُلقي في النار فجعلها الله بردًا وسلامًا، ورفع قواعد الكعبة مع إسماعيل.'),
+Entry('7. لوط عليه السلام','نهى قومه عن الفاحشة، فنجّاه الله وأهله المؤمنين وأهلك القرى المكذبة.'),
+Entry('8. إسماعيل عليه السلام','ابن إبراهيم، صادق الوعد، شارك أباه في بناء الكعبة، ومثّل الصبر والتسليم.'),
+Entry('9. إسحاق عليه السلام','بشّر الله إبراهيم وزوجه به على الكبر وجعله نبيًا من الصالحين، وهو والد يعقوب.'),
+Entry('10. يعقوب عليه السلام','صبر على فقد يوسف وبنيامين، وردّ الله إليه بصره وجمع شمله بأبنائه.'),
+Entry('11. يوسف عليه السلام','أُلقي في الجب وابتُلي بالسجن، فصبر وأحسن، ثم مكّنه الله وجمعه بأهله.'),
+Entry('12. أيوب عليه السلام','ابتُلي في جسده وأهله وماله فصبر ودعا ربه، فكشف الله عنه الضر.'),
+Entry('13. شعيب عليه السلام','أُرسل إلى مدين فأمر بالتوحيد والعدل في الكيل والميزان ونهاهم عن بخس الناس.'),
+Entry('14. موسى عليه السلام','أرسله الله إلى فرعون وأيّده بالآيات، ونجّى بني إسرائيل وأنزل عليه التوراة.'),
+Entry('15. هارون عليه السلام','أخو موسى ووزيره، دعا معه فرعون وقومه واستخلفه موسى على بني إسرائيل.'),
+Entry('16. ذو الكفل عليه السلام','ذكره الله في جملة الصابرين والأخيار، ولم يذكر القرآن تفاصيل قصته.'),
+Entry('17. داود عليه السلام','آتاه الله الملك والحكمة والزبور وألان له الحديد، وكان عبدًا أوّابًا.'),
+Entry('18. سليمان عليه السلام','سخّر الله له الريح والجن وعلّمه منطق الطير، ودعا ملكة سبأ إلى التوحيد.'),
+Entry('19. إلياس عليه السلام','دعا قومه لعبادة الله وترك عبادة بعل، وأثنى الله عليه في القرآن.'),
+Entry('20. اليسع عليه السلام','ذكره الله في جملة الأخيار، ولم يرد في القرآن تفصيل واسع لأحداث حياته.'),
+Entry('21. يونس عليه السلام','ابتلعه الحوت فنادى في الظلمات بدعاء ذي النون، فاستجاب الله له ونجّاه.'),
+Entry('22. زكريا عليه السلام','كفل مريم ودعا ربه أن يرزقه ولدًا على كبر، فبشّره الله بيحيى.'),
+Entry('23. يحيى عليه السلام','آتاه الله الحكم صبيًا وكان تقيًا بارًا بوالديه، ووصفه بالسلام يوم ولد ويوم يموت.'),
+Entry('24. عيسى عليه السلام','وُلد من مريم بلا أب آية من الله، وأيّده بالمعجزات بإذنه ورفعه إليه.'),
+Entry('25. محمد ﷺ','خاتم الأنبياء، بعثه الله رحمة للعالمين وأنزل عليه القرآن، ودعا إلى التوحيد وصبر على الأذى.')
+];
 class EntriesPage extends StatelessWidget{final List<Entry> items;const EntriesPage({super.key,required this.items});@override Widget build(BuildContext c)=>ListView.builder(padding:const EdgeInsets.all(12),itemCount:items.length,itemBuilder:(c,i)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(items[i].title,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),const SizedBox(height:8),Text(items[i].body,style:const TextStyle(fontSize:18,height:1.8))]))));}
 class NamesPage extends StatelessWidget{const NamesPage({super.key});static const names=['الرَّحْمَن','الرَّحِيم','الْمَلِك','الْقُدُّوس','السَّلَام','الْمُؤْمِن','الْمُهَيْمِن','الْعَزِيز','الْجَبَّار','الْمُتَكَبِّر','الْخَالِق','الْبَارِئ','الْمُصَوِّر','الْغَفَّار','الْقَهَّار','الْوَهَّاب','الرَّزَّاق','الْفَتَّاح','الْعَلِيم','الْقَابِض','الْبَاسِط','الْخَافِض','الرَّافِع','الْمُعِزّ','الْمُذِلّ','السَّمِيع','الْبَصِير','الْحَكَم','الْعَدْل','اللَّطِيف','الْخَبِير','الْحَلِيم','الْعَظِيم','الْغَفُور','الشَّكُور','الْعَلِيّ','الْكَبِير','الْحَفِيظ','الْمُقِيت','الْحَسِيب','الْجَلِيل','الْكَرِيم','الرَّقِيب','الْمُجِيب','الْوَاسِع','الْحَكِيم','الْوَدُود','الْمَجِيد','الْبَاعِث','الشَّهِيد','الْحَقّ','الْوَكِيل','الْقَوِيّ','الْمَتِين','الْوَلِيّ','الْحَمِيد','الْمُحْصِي','الْمُبْدِئ','الْمُعِيد','الْمُحْيِي','الْمُمِيت','الْحَيّ','الْقَيُّوم','الْوَاجِد','الْمَاجِد','الْوَاحِد','الصَّمَد','الْقَادِر','الْمُقْتَدِر','الْمُقَدِّم','الْمُؤَخِّر','الْأَوَّل','الْآخِر','الظَّاهِر','الْبَاطِن','الْوَالِي','الْمُتَعَالِي','الْبَرّ','التَّوَّاب','الْمُنْتَقِم','الْعَفُوّ','الرَّؤُوف','مَالِكُ الْمُلْك','ذُو الْجَلَالِ وَالْإِكْرَام','الْمُقْسِط','الْجَامِع','الْغَنِيّ','الْمُغْنِي','الْمَانِع','الضَّارّ','النَّافِع','النُّور','الْهَادِي','الْبَدِيع','الْبَاقِي','الْوَارِث','الرَّشِيد','الصَّبُور'];@override Widget build(BuildContext c)=>GridView.builder(padding:const EdgeInsets.all(12),itemCount:names.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,crossAxisSpacing:8,mainAxisSpacing:8,childAspectRatio:2.5),itemBuilder:(c,i)=>Card(child:Center(child:Text('${i+1}. ${names[i]}',style:const TextStyle(color:green,fontWeight:FontWeight.bold)))));}
 class InfoPage extends StatelessWidget{final IconData icon;final String title,message;const InfoPage({super.key,required this.icon,required this.title,required this.message});@override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(icon,size:64,color:green),const SizedBox(height:16),Text(title,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(message,textAlign:TextAlign.center,style:const TextStyle(fontSize:17,height:1.7))])));}
