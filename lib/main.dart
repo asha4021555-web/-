@@ -1182,38 +1182,80 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
 
 class StoriesPage extends StatelessWidget {
   const StoriesPage({super.key});
+
   @override
-  Widget build(BuildContext context) => ListView.builder(
-    padding: const EdgeInsets.all(12),
-    itemCount: stories.length,
-    itemBuilder: (context, index) {
-      final story = stories[index];
-      return Card(
-        child: ListTile(
-          leading: CircleAvatar(child: Text('${index + 1}')),
-          title: Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold, color: green)),
-          subtitle: const Text('اضغط لقراءة القصة'),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StoryDetailPage(story: story))),
-        ),
-      );
-    },
-  );
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: stories.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final story = stories[index];
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => StoryDetailPage(story: story),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+              child: Row(
+                children: [
+                  CircleAvatar(child: Text('${index + 1}')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold, color: green, fontSize: 17)),
+                        const SizedBox(height: 5),
+                        const Text('اضغط لقراءة القصة كاملة'),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_left, color: green),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class StoryDetailPage extends StatelessWidget {
   final Entry story;
   const StoryDetailPage({super.key, required this.story});
+
   @override
   Widget build(BuildContext context) => Directionality(
     textDirection: TextDirection.rtl,
-    child: ListView(padding: const EdgeInsets.all(20), children: [
-      Text(story.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: green)),
-      const Divider(height: 24),
-      SelectableText(story.body, style: const TextStyle(fontSize: 19, height: 2)),
-      const SizedBox(height: 18),
-      const Text('المعلومات المعروضة موجزة ومبنية على ما ورد في القرآن الكريم؛ ولا تُضاف تفاصيل غير ثابتة.', style: TextStyle(color: Colors.black54, height: 1.7)),
-    ]),
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(story.title),
+        backgroundColor: green,
+        foregroundColor: Colors.white,
+      ),
+      body: SelectionArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(story.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: green)),
+            const Divider(height: 24),
+            Text(story.body, style: const TextStyle(fontSize: 19, height: 2)),
+            const SizedBox(height: 18),
+            const Text('المعلومات المعروضة مبنية على ما ورد في القرآن الكريم، ولا تُضاف تفاصيل غير ثابتة.', style: TextStyle(color: Colors.black54, height: 1.7)),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
