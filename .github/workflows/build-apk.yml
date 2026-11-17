@@ -58,7 +58,7 @@ jobs:
           ]:
               if permission not in s:
                   tag = '<uses-permission android:name="{}"/>'.format(permission)
-                  s = s.replace('<application', tag + '\\n    <application', 1)
+                  s = s.replace('<application', tag + '\n    <application', 1)
           receivers = '''
               <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
               <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
@@ -71,7 +71,7 @@ jobs:
               </receiver>
           '''
           if 'ScheduledNotificationReceiver' not in s:
-              s = s.replace('</application>', receivers + '\\n</application>', 1)
+              s = s.replace('</application>', receivers + '\n</application>', 1)
           p.write_text(s)
           PY
 
