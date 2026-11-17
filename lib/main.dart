@@ -9,7 +9,91 @@ const green=Color(0xFF176B45);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام'];
 const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay];
 class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green),scaffoldBackgroundColor:const Color(0xFFF7F8F3)),home:const HomePage());}
-class HomePage extends StatelessWidget{const HomePage({super.key});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:ListView(padding:const EdgeInsets.all(16),children:[Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(gradient:const LinearGradient(colors:[green,Color(0xFF0D4930)]),borderRadius:BorderRadius.circular(22)),child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('أهلاً بك في نور الإسلام',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.bold)),SizedBox(height:8),Text('رفيقك للقرآن والذكر والعبادة',style:TextStyle(color:Colors.white70))])),const SizedBox(height:18),GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:titles.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,crossAxisSpacing:12,mainAxisSpacing:12,childAspectRatio:1.12),itemBuilder:(c,i)=>Card(color:Colors.white,child:InkWell(onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SectionPage(index:i))),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icons[i],size:34,color:green),const SizedBox(height:10),Text(titles[i],textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.bold))]))))])));}
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+  @override State<HomePage> createState() => _HomePageState();
+}
+class _HomePageState extends State<HomePage> {
+  int tab = 0;
+  void _open(Widget page, String title) => Navigator.push(context, MaterialPageRoute(builder: (_) => Directionality(textDirection: TextDirection.rtl, child: Scaffold(appBar: AppBar(title: Text(title), backgroundColor: green, foregroundColor: Colors.white), body: page))));
+  @override Widget build(BuildContext c) {
+    final pages = <Widget>[
+      ListView(padding: const EdgeInsets.all(16), children: [
+        Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(gradient: const LinearGradient(colors:[green,Color(0xFF0D4930)]),borderRadius:BorderRadius.circular(22)), child: const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('أهلاً بك في نور الإسلام',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.bold)),
+          SizedBox(height:6),Text('رفيقك للقرآن والذكر والعبادة',style:TextStyle(color:Colors.white70)),
+        ])),
+        const SizedBox(height:14),
+        const PrayerHomeSummary(),
+        const SizedBox(height:14),
+        Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment:CrossAxisAlignment.stretch, children:[
+          const Text('الوصول السريع',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),
+          const SizedBox(height:8),
+          Row(children:[
+            Expanded(child: OutlinedButton.icon(onPressed:()=>_open(const TafsirPage(),'تفسير القرآن الكريم'),icon:const Icon(Icons.menu_book),label:const Text('التفسير'))),
+            const SizedBox(width:8),
+            Expanded(child: OutlinedButton.icon(onPressed:()=>_open(const DreamsPage(),'تفسير الأحلام'),icon:const Icon(Icons.nights_stay),label:const Text('الأحلام'))),
+          ]),
+        ]))),
+        const SizedBox(height:10),
+        Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          const Text('محتويات نور الإسلام',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),
+          const SizedBox(height:8),
+          Wrap(spacing:8,runSpacing:8,children:[
+            for(final item in [(0,'القرآن الكريم',Icons.menu_book),(1,'أذكار الصباح والمساء',Icons.wb_twilight),(2,'أذكار بعد الصلاة',Icons.mosque),(3,'الأدعية',Icons.volunteer_activism),(4,'الأحاديث',Icons.auto_stories),(5,'قصص الأنبياء',Icons.history_edu),(6,'أسماء الله الحسنى',Icons.star),(7,'السبحة',Icons.radio_button_checked)])
+              ActionChip(avatar:Icon(item.$3,color:green,size:18),label:Text(item.$2),onPressed:()=>_open(SectionPage(index:item.$1),titles[item.$1])),
+          ]),
+        ]))),
+        const SizedBox(height:12),
+        const HijriDateFooter(),
+      ]),
+      const QiblaPage(),
+      const QuranPage(),
+      const DhikrPage(after:false),
+      ListView(padding:const EdgeInsets.all(16),children:[
+        const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
+        const SizedBox(height:10),
+        ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
+        ListTile(leading:const Icon(Icons.menu_book,color:green),title:const Text('تفسير القرآن الكريم'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const TafsirPage(),'تفسير القرآن الكريم')),
+        ListTile(leading:const Icon(Icons.nights_stay,color:green),title:const Text('تفسير الأحلام'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const DreamsPage(),'تفسير الأحلام')),
+      ]),
+    ];
+    return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
+      appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),
+      body:IndexedStack(index:tab,children:pages),
+      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const[
+        NavigationDestination(icon:Icon(Icons.settings_outlined),selectedIcon:Icon(Icons.settings),label:'الإعدادات'),
+        NavigationDestination(icon:Icon(Icons.explore_outlined),selectedIcon:Icon(Icons.explore),label:'القبلة'),
+        NavigationDestination(icon:Icon(Icons.menu_book_outlined),selectedIcon:Icon(Icons.menu_book),label:'القرآن'),
+        NavigationDestination(icon:Icon(Icons.wb_twilight_outlined),selectedIcon:Icon(Icons.wb_twilight),label:'الأذكار'),
+      ]),
+    ));
+  }
+}
+class HijriDateFooter extends StatelessWidget {
+  const HijriDateFooter({super.key});
+  @override Widget build(BuildContext context) {
+    final now=DateTime.now();
+    final jd=(1461*(now.year+4800+(now.month-14)~/12))~/4+(367*(now.month-2-12*((now.month-14)~/12)))~/12-(3*((now.year+4900+(now.month-14)~/12)~/100))~/4+now.day-32075;
+    var l=jd-1948440+10632;
+    final n=(l-1)~/10631;
+    l=l-10631*n+354;
+    final j=((10985-l)~/5316)*((50*l)~/17719)+(l~/5670)*((43*l)~/15238);
+    l=l-((30-j)~/15)*((17719*j)~/50)-(j~/16)*((15238*j)~/43)+29;
+    final month=(24*l)~/709;
+    final day=l-(709*month)~/24;
+    final year=30*n+j-30;
+    const months=['','محرم','صفر','ربيع الأول','ربيع الآخر','جمادى الأولى','جمادى الآخرة','رجب','شعبان','رمضان','شوال','ذو القعدة','ذو الحجة'];
+    return Card(child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+      const Icon(Icons.calendar_month,color:green,size:28),const SizedBox(width:10),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('التاريخ الهجري',style:TextStyle(fontWeight:FontWeight.bold,color:green)),
+        Text('\$day \${months[month]} \$year هـ',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w600)),
+        const Text('قد يختلف يومًا حسب الرؤية الشرعية',style:TextStyle(fontSize:11,color:Colors.black54)),
+      ])),
+    ])));
+  }
+}
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget{const QuranPage({super.key});static const surahs=quranSurahNames;static const surahAyahCounts=quranAyahCounts;@override Widget build(BuildContext c)=>ListView.separated(padding:const EdgeInsets.all(12),itemCount:surahs.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(c,i)=>ListTile(leading:CircleAvatar(child:Text('${i+1}')),title:Text('سورة ${surahs[i]}'),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>SurahReader(number:i+1,name:surahs[i])))));}
 
