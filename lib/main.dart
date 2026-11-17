@@ -10,10 +10,13 @@ import 'tafsir_page.dart';
 import 'dreams_page.dart';
 final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
 void main()=>runApp(const NoorApp());
-const green=Color(0xFF176B45);
+const green=Color(0xFF493326);
+const gold=Color(0xFFE8C77B);
+const softGold=Color(0xFFE8D4A7);
+const ivory=Color(0xFFF5F0E6);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر'];
 const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book];
-class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green),scaffoldBackgroundColor:const Color(0xFFF7F8F3)),home:const HomePage());}
+class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green).copyWith(primary:green,onPrimary:Colors.white,secondary:gold,onSecondary:const Color(0xFF332319),surface:ivory),scaffoldBackgroundColor:ivory),home:const HomePage());}
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
   @override State<HomePage> createState() => _HomePageState();
@@ -24,7 +27,7 @@ class _HomePageState extends State<HomePage> {
   @override Widget build(BuildContext c) {
     final pages = <Widget>[
       ListView(padding: const EdgeInsets.all(16), children: [
-        Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(gradient: const LinearGradient(colors:[green,Color(0xFF0D4930)]),borderRadius:BorderRadius.circular(22)), child: const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(gradient: const LinearGradient(colors:[green,Color(0xFF332319)]),borderRadius:BorderRadius.circular(22)), child: const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text('أهلاً بك في نور الإسلام',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.bold)),
           SizedBox(height:6),Text('رفيقك للقرآن والذكر والعبادة',style:TextStyle(color:Colors.white70)),
         ])),
@@ -115,7 +118,7 @@ class HijriCalendarPage extends StatelessWidget {
           const SizedBox(height:5),
           Wrap(spacing:0,runSpacing:6,children:[
             for(var blank=0;blank<leading;blank++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40),
-            for(var day=1;day<=days;day++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40,child:Center(child:Container(width:32,height:32,alignment:Alignment.center,decoration:BoxDecoration(color:Colors.green.withValues(alpha:.07),borderRadius:BorderRadius.circular(8)),child:Text(day.toString())))),
+            for(var day=1;day<=days;day++)SizedBox(width:MediaQuery.of(context).size.width/8.4,height:40,child:Center(child:Container(width:32,height:32,alignment:Alignment.center,decoration:BoxDecoration(color:gold.withValues(alpha:.18),borderRadius:BorderRadius.circular(8)),child:Text(day.toString())))),
           ]),
           const SizedBox(height:4),Text(days.toString()+' يومًا',style:const TextStyle(fontSize:11,color:Colors.black54)),
         ])));
@@ -594,7 +597,7 @@ class _MushafPageReaderState extends State<MushafPageReader>{
     Padding(padding:const EdgeInsets.all(8),child:Text('صفحة ${index+1} من ${pages.length} • اسحب أفقيًا لتقليب الورقة',style:const TextStyle(color:green,fontWeight:FontWeight.bold))),
     Expanded(child:PageView.builder(controller:controller,itemCount:pages.length,onPageChanged:(v)=>setState(()=>index=v),itemBuilder:(context,i){
      final p=pages[i];final ayahs=p['ayahs'] as List<Map<String,dynamic>>;
-     return Container(margin:const EdgeInsets.fromLTRB(10,4,10,12),padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:const Color(0xFFFFFEF8),border:Border.all(color:const Color(0xFFD7C9A8)),borderRadius:BorderRadius.circular(8),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:8,offset:Offset(0,3))]),child:SingleChildScrollView(child:Column(children:[
+     return Container(margin:const EdgeInsets.fromLTRB(10,4,10,12),padding:const EdgeInsets.all(18),decoration:BoxDecoration(color:ivory,border:Border.all(color:softGold),borderRadius:BorderRadius.circular(8),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:8,offset:Offset(0,3))]),child:SingleChildScrollView(child:Column(children:[
       Text('سُورَةُ ${widget.name}',style:const TextStyle(color:Colors.black,fontWeight:FontWeight.bold,fontSize:19)),const Divider(height:24,color:Color(0xFFB9A77E)),
       Text.rich(TextSpan(children:[for(final a in ayahs)...[..._colorAllah(a['text'] as String),TextSpan(text:' ﴿${a['number']}﴾  ')]]),textAlign:TextAlign.justify,textDirection:TextDirection.rtl,style:const TextStyle(fontSize:22,height:2.05,color:Colors.black)),
       const SizedBox(height:16),Text('— ${p['page']} —',style:const TextStyle(color:Colors.black54)),
@@ -711,7 +714,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                 return Container(
                   margin: const EdgeInsets.fromLTRB(8, 2, 8, 8),
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                  decoration: BoxDecoration(color: const Color(0xFFFFFEF8), border: Border.all(color: const Color(0xFFD7C9A8)), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
                   child: SingleChildScrollView(child: Column(children: [
                     for (final ayah in ayahs) ...[
                       if (ayah['number'] == 1) ...[
