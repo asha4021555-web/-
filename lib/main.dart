@@ -368,7 +368,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   Timer? _scrollTimer;
   bool _scrolling = false;
   double _speed = 140;
-  double _zoom = 1.0;
+  double _fontSize = 24;
   late Future<_ContinuousReaderData> _data;
 
   @override
@@ -378,31 +378,16 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   }
 
   Future<_ContinuousReaderData> _loadData() async {
-    final rawPages = await rootBundle.loadString('assets/quran-pages.json');
-    final pageEntries = jsonDecode(rawPages) as List<dynamic>;
-    if (pageEntries.length != 604) throw Exception('بيانات صفحات المصحف غير مكتملة.');
-    final surahStart = quranAyahCounts.take(widget.number - 1).fold<int>(0, (sum, count) => sum + count);
-    final surahEnd = surahStart + quranAyahCounts[widget.number - 1] - 1;
-    var firstPage = 1;
-    var lastPage = 604;
-    var foundStart = false;
-    for (final item in pageEntries) {
-      final entry = item as Map<String, dynamic>;
-      final sura = entry['sura'] as int;
-      final aya = entry['aya'] as int;
-      final page = entry['page'] as int;
-      final absoluteAyah = quranAyahCounts.take(sura - 1).fold<int>(0, (sum, count) => sum + count) + aya - 1;
-      if (absoluteAyah <= surahStart) {
-        firstPage = page;
-        foundStart = true;
-      } else if (absoluteAyah > surahEnd) {
-        lastPage = page - 1;
-        break;
-      }
+    final rawText = await rootBundle.loadString('assets/quran-uthmani.txt');
+    final allAyahs = rawText.split('\\n');
+    if (allAyahs.length != 6236) {
+      throw Exception('ملف القرآن غير مكتمل: ${allAyahs.length} آية');
     }
-    if (!foundStart) throw Exception('تعذر تحديد بداية السورة في المصحف.');
-    if (lastPage < firstPage) lastPage = firstPage;
-    return _ContinuousReaderData(firstPage, lastPage);
+    final start = quranAyahCounts
+        .take(widget.number - 1)
+        .fold<int>(0, (sum, count) => sum + count);
+    final count = quranAyahCounts[widget.number - 1];
+    return _ContinuousReaderData(allAyahs.skip(start).take(count).toList());
   }
 
   void _startScrolling() {
@@ -462,24 +447,24 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 child: Column(children: [
                   Text('قرآن كريم • سورة ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  const Text('تمرير رأسي متواصل بين صور الصفحات', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  const Text('قراءة نصية مع تمرير رأسي متواصل', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ]),
               ),
-              for (var page = data.firstPage; page <= data.lastPage; page++)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * _zoom,
-                      child: Image.asset(
-                        'assets/mushaf_pages/$page.png',
-                        fit: BoxFit.fitWidth,
-                        width: MediaQuery.of(context).size.width * _zoom,
-                        errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر فتح صورة الصفحة $page من ملفات التطبيق.'))),
-                      ),
+              for (var i = 0; i < data.ayahs.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
+                  child: Text(
+                    '${data.ayahs[i]} ﴿${i + 1}﴾',
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.justify,
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
+                    textWidthBasis: TextWidthBasis.parent,
+                    style: TextStyle(
+                      fontFamily: 'Amiri',
+                      fontSize: _fontSize,
+                      height: 2.0,
+                      color: const Color(0xFF30251E),
                     ),
                   ),
                 ),
@@ -494,8 +479,30 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 elevation: 8,
                 color: Colors.white,
                 child: SafeArea(top: false, child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Row(children: [
+                      IconButton(
+                        tooltip: 'تصغير حجم الخط',
+                        onPressed: _fontSize > 18 ? () => setState(() => _fontSize = (_fontSize - 2).clamp(18, 44)) : null,
+                        icon: const Icon(Icons.text_decrease, color: green),
+                      ),
+                      Expanded(child: Slider(
+                        value: _fontSize,
+                        min: 18,
+                        max: 44,
+                        divisions: 13,
+                        label: _fontSize.round().toString(),
+                        activeColor: green,
+                        onChanged: (value) => setState(() => _fontSize = value),
+                      )),
+                      IconButton(
+                        tooltip: 'تكبير حجم الخط',
+                        onPressed: _fontSize < 44 ? () => setState(() => _fontSize = (_fontSize + 2).clamp(18, 44)) : null,
+                        icon: const Icon(Icons.text_increase, color: green),
+                      ),
+                      Text(_fontSize.round().toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ]),
                     Wrap(spacing: 6, children: [
                       for (final preset in const [('بطيء', 45.0), ('متوسط', 140.0), ('سريع', 300.0)])
                         ChoiceChip(
@@ -515,24 +522,13 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                       Text('${_speed.round()}'),
                     ]),
                     Row(children: [
-                      IconButton(
-                        tooltip: 'تصغير صفحات المصحف',
-                        onPressed: _zoom > 0.8 ? () => setState(() => _zoom = (_zoom - 0.1).clamp(0.8, 2.0)) : null,
-                        icon: const Icon(Icons.zoom_out, color: green),
-                      ),
-                      Text('${(_zoom * 100).round()}%', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      IconButton(
-                        tooltip: 'تكبير صفحات المصحف',
-                        onPressed: _zoom < 2.0 ? () => setState(() => _zoom = (_zoom + 0.1).clamp(0.8, 2.0)) : null,
-                        icon: const Icon(Icons.zoom_in, color: green),
-                      ),
-                      const SizedBox(width: 4),
                       Expanded(child: FilledButton.icon(
                         onPressed: _scrolling ? _stopScrolling : _startScrolling,
                         icon: Icon(_scrolling ? Icons.pause : Icons.play_arrow),
                         label: Text(_scrolling ? 'إيقاف مؤقت' : 'ابدأ التمرير التلقائي'),
                         style: FilledButton.styleFrom(backgroundColor: green),
                       )),
+                      const SizedBox(width: 8),
                       IconButton(
                         tooltip: 'العودة إلى بداية السورة',
                         onPressed: () {
@@ -724,9 +720,8 @@ class _MushafBookReaderState extends State<MushafBookReader> {
 }
 
 class _ContinuousReaderData {
-  final int firstPage;
-  final int lastPage;
-  const _ContinuousReaderData(this.firstPage, this.lastPage);
+  final List<String> ayahs;
+  const _ContinuousReaderData(this.ayahs);
 }
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
