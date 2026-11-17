@@ -368,6 +368,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   Timer? _scrollTimer;
   bool _scrolling = false;
   double _speed = 140;
+  double _zoom = 1.0;
   late Future<_ContinuousReaderData> _data;
 
   @override
@@ -469,11 +470,17 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(color: ivory, border: Border.all(color: softGold), borderRadius: BorderRadius.circular(8)),
-                  child: Image.asset(
-                    'assets/mushaf_pages/$page.png',
-                    fit: BoxFit.fitWidth,
-                    width: double.infinity,
-                    errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر فتح صورة الصفحة $page من ملفات التطبيق.'))),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * _zoom,
+                      child: Image.asset(
+                        'assets/mushaf_pages/$page.png',
+                        fit: BoxFit.fitWidth,
+                        width: MediaQuery.of(context).size.width * _zoom,
+                        errorBuilder: (context, error, stack) => SizedBox(height: 260, child: Center(child: Text('تعذر فتح صورة الصفحة $page من ملفات التطبيق.'))),
+                      ),
+                    ),
                   ),
                 ),
             ];
@@ -508,13 +515,24 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                       Text('${_speed.round()}'),
                     ]),
                     Row(children: [
+                      IconButton(
+                        tooltip: 'تصغير صفحات المصحف',
+                        onPressed: _zoom > 0.8 ? () => setState(() => _zoom = (_zoom - 0.1).clamp(0.8, 2.0)) : null,
+                        icon: const Icon(Icons.zoom_out, color: green),
+                      ),
+                      Text('${(_zoom * 100).round()}%', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      IconButton(
+                        tooltip: 'تكبير صفحات المصحف',
+                        onPressed: _zoom < 2.0 ? () => setState(() => _zoom = (_zoom + 0.1).clamp(0.8, 2.0)) : null,
+                        icon: const Icon(Icons.zoom_in, color: green),
+                      ),
+                      const SizedBox(width: 4),
                       Expanded(child: FilledButton.icon(
                         onPressed: _scrolling ? _stopScrolling : _startScrolling,
                         icon: Icon(_scrolling ? Icons.pause : Icons.play_arrow),
                         label: Text(_scrolling ? 'إيقاف مؤقت' : 'ابدأ التمرير التلقائي'),
                         style: FilledButton.styleFrom(backgroundColor: green),
                       )),
-                      const SizedBox(width: 8),
                       IconButton(
                         tooltip: 'العودة إلى بداية السورة',
                         onPressed: () {
