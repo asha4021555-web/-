@@ -150,7 +150,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
@@ -848,13 +848,13 @@ class _HadithLibraryPageState extends State<HadithLibraryPage> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('\${i}. \${h['reference'] ?? 'حديث رقم $i'}',
+                Text('${i}. ${h['reference'] ?? 'حديث رقم $i'}',
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: green)),
                 const SizedBox(height: 8),
                 SelectableText((h['text_ar'] ?? '').toString(),
                   style: const TextStyle(fontSize: 19, height: 2)),
                 const SizedBox(height: 10),
-                Text('\${h['source'] ?? ''} • \${h['grade'] ?? 'صحيح بالإدراج في الصحيح'}',
+                Text('${h['source'] ?? ''} • ${h['grade'] ?? 'صحيح بالإدراج في الصحيح'}',
                   style: const TextStyle(fontSize: 12, color: Colors.black54)),
               ]),
             ),
@@ -903,7 +903,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       var position = 0;
       for (var s = 0; s < quranAyahCounts.length; s++) {
         for (var a = 1; a <= quranAyahCounts[s]; a++) {
-          _add('القرآن الكريم', 'سورة \${quranSurahNames[s]} - الآية $a',
+          _add('القرآن الكريم', 'سورة ${quranSurahNames[s]} - الآية $a',
             ayahs[position++], surah: s + 1);
         }
       }
@@ -914,7 +914,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       for (final e in duas) { _add('الأدعية', e.title, e.body, section: 3); }
       for (final e in stories) { _add('قصص الأنبياء', e.title, e.body, section: 5); }
       for (var i = 0; i < NamesPage.names.length; i++) {
-        _add('أسماء الله الحسنى', '\${i + 1}. \${NamesPage.names[i]}', NamesPage.names[i], section: 6);
+        _add('أسماء الله الحسنى', '${i + 1}. ${NamesPage.names[i]}', NamesPage.names[i], section: 6);
       }
       for (final item in DreamsPage.searchItems) {
         _add('تفسير الأحلام', item.key, item.value, section: 11);
@@ -928,9 +928,12 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       for (final row in hadithRows) {
         final h = Map<String, dynamic>.from(row as Map);
         _add('الأحاديث النبوية', (h['reference'] ?? 'حديث').toString(),
-          '\${h['text_ar'] ?? ''} \${h['source'] ?? ''}', section: 4);
+          '${h['text_ar'] ?? ''} ${h['source'] ?? ''}', section: 4);
       }
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) {
+        setState(() { _loading = false; });
+        if (_controller.text.trim().isNotEmpty) _search(_controller.text);
+      }
     } catch (e) {
       if (mounted) setState(() { _loading = false; _error = e.toString(); });
     }
@@ -939,9 +942,9 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
   void _search(String value) {
     final query = _foldArabic(value.trim());
     setState(() {
-      if (query.length < 2) { _results = []; return; }
+      if (query.isEmpty) { _results = []; return; }
       _results = _index.where((hit) =>
-        _foldArabic('\${hit.title} \${hit.body} \${hit.category}').contains(query)
+        _foldArabic('${hit.title} ${hit.body} ${hit.category}').contains(query)
       ).take(150).toList();
     });
   }
@@ -952,7 +955,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     if (hit.surah != null) {
       final n = hit.surah!;
       page = SurahReader(number: n, name: quranSurahNames[n - 1]);
-      title = 'سورة \${quranSurahNames[n - 1]}';
+      title = 'سورة ${quranSurahNames[n - 1]}';
     } else if (hit.section == 4) {
       page = const HadithLibraryPage();
     } else {
@@ -984,8 +987,8 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       ? const Center(child: CircularProgressIndicator())
       : _error.isNotEmpty
         ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(_error, textAlign: TextAlign.center)))
-        : _controller.text.trim().length < 2
-          ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('اكتب كلمتين على الأقل للبحث في القرآن والأذكار والأدعية والأحاديث والقصص والأسماء وتفسير الأحلام.', textAlign: TextAlign.center, style: TextStyle(height: 1.8))))
+        : _controller.text.trim().isEmpty
+          ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('اكتب كلمة للبحث في القرآن والأذكار والأدعية والأحاديث والقصص والأسماء وتفسير الأحلام.', textAlign: TextAlign.center, style: TextStyle(height: 1.8))))
           : _results.isEmpty
             ? const Center(child: Text('لا توجد نتائج مطابقة.'))
             : ListView.separated(
@@ -995,7 +998,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                   final hit = _results[i];
                   return ListTile(
                     title: Text(hit.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('\${hit.category} • \${hit.body}', maxLines: 3, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('${hit.category} • ${hit.body}', maxLines: 3, overflow: TextOverflow.ellipsis),
                     onTap: () => _openHit(hit),
                   );
                 },
