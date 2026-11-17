@@ -380,20 +380,26 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     final rawPages = await rootBundle.loadString('assets/quran-pages.json');
     final pageEntries = jsonDecode(rawPages) as List<dynamic>;
     if (pageEntries.length != 604) throw Exception('بيانات صفحات المصحف غير مكتملة.');
+    final surahStart = quranAyahCounts.take(widget.number - 1).fold<int>(0, (sum, count) => sum + count);
+    final surahEnd = surahStart + quranAyahCounts[widget.number - 1] - 1;
     var firstPage = 1;
     var lastPage = 604;
+    var foundStart = false;
     for (final item in pageEntries) {
       final entry = item as Map<String, dynamic>;
       final sura = entry['sura'] as int;
       final aya = entry['aya'] as int;
       final page = entry['page'] as int;
-      if (sura == widget.number && aya == 1) firstPage = page;
-      if (sura == widget.number + 1 && aya == 1) {
+      final absoluteAyah = quranAyahCounts.take(sura - 1).fold<int>(0, (sum, count) => sum + count) + aya - 1;
+      if (absoluteAyah <= surahStart) {
+        firstPage = page;
+        foundStart = true;
+      } else if (absoluteAyah > surahEnd) {
         lastPage = page - 1;
         break;
       }
     }
-    if (widget.number == 114) lastPage = 604;
+    if (!foundStart) throw Exception('تعذر تحديد بداية السورة في المصحف.');
     if (lastPage < firstPage) lastPage = firstPage;
     return _ContinuousReaderData(firstPage, lastPage);
   }
