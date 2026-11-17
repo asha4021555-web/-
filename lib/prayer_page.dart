@@ -114,10 +114,25 @@ Future<String> _reverseGeocode(double latitude, double longitude) async {
 Future<void> _initAlerts() async {
   tzdata.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Africa/Cairo'));
-  await _notifier.initialize(const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
-  final android = _notifier.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await _notifier.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    ),
+  );
+  final android =
+      _notifier.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   await android?.requestNotificationsPermission();
   await android?.requestExactAlarmsPermission();
+  await android?.createNotificationChannel(
+    const AndroidNotificationChannel(
+      'noor_prayers',
+      'تنبيهات الصلاة',
+      description: 'تنبيه قبل الصلاة وعند دخول الوقت وموعد الإقامة',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    ),
+  );
 }
 
 DateTime _getTime(Coordinates c, DateTime d, Prayer prayer, [String methodKey = 'egyptian']) {
@@ -265,7 +280,20 @@ class _PrayerPageState extends State<PrayerPage> {
       final savedAudio=prefs.getString('adhan_audio_path');
       audioPath=savedAudio!=null && File(savedAudio).existsSync() ? savedAudio : null;
     });
-    if(coordinates==null)await _locate();
+    if (coordinates == null) {
+      await _locate();
+    }
+    // Restore the next seven days of reminders after every app launch.
+    // Android may clear scheduled alarms after force-stop or app updates.
+    if (alerts && coordinates != null) {
+      try {
+        await _refresh();
+      } catch (e) {
+        if (mounted) {
+          _msg('تعذر إعادة ضبط تنبيهات الصلاة: ${e.toString()}');
+        }
+      }
+    }
   }
   Future<void> _saveCoordinates(Coordinates c,String name) async {
     final prefs=await SharedPreferences.getInstance();
