@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'quran_data.dart';
 
@@ -16,12 +17,16 @@ class _TafsirPageState extends State<TafsirPage> {
   int surah = 1;
   late String source;
   late Future<Map<int, String>> data;
+  late Future<List<String>> quranText;
 
   @override
   void initState() {
     super.initState();
     source = widget.initialSource;
     data = _fetch(surah, source);
+    quranText = rootBundle.loadString('assets/quran-uthmani.txt').then(
+      (value) => value.split('\\n').where((line) => line.trim().isNotEmpty).toList(),
+    );
   }
 
   void _reload() {
@@ -168,38 +173,66 @@ class _TafsirPageState extends State<TafsirPage> {
                   );
                 }
                 final verses = snapshot.data!;
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                  itemCount: quranAyahCounts[surah - 1] + 1,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Text(
-                          'سورة ${quranSurahNames[surah - 1]} • ${verses.length} موضع تفسير',
-                          style: const TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold),
-                        ),
-                      );
+                return FutureBuilder<List<String>>(
+                  future: quranText,
+                  builder: (context, textSnapshot) {
+                    if (textSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
                     }
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 9),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'الآية $index',
+                    if (textSnapshot.hasError || textSnapshot.data == null) {
+                      return const Center(child: Text('تعذر تحميل نص القرآن لعرض الآية مع تفسيرها.'));
+                    }
+                    final allAyahs = textSnapshot.data!;
+                    var firstAyahIndex = 0;
+                    for (var i = 0; i < surah - 1; i++) {
+                      firstAyahIndex += quranAyahCounts[i];
+                    }
+                    if (allAyahs.length < firstAyahIndex + quranAyahCounts[surah - 1]) {
+                      return const Center(child: Text('ملف نص القرآن غير مكتمل؛ لم نعرض تفسيرًا دون الآية المقابلة له.'));
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                      itemCount: quranAyahCounts[surah - 1] + 1,
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                              'سورة ${quranSurahNames[surah - 1]} • ${verses.length} موضع تفسير',
                               style: const TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold),
                             ),
-                            const Divider(height: 16),
-                            SelectableText(
-                              verses[index]!,
-                              style: const TextStyle(fontSize: 17, height: 1.9),
+                          );
+                        }
+                        final ayahText = allAyahs[firstAyahIndex + index - 1];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 9),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'الآية $index',
+                                  style: const TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                SelectableText(
+                                  ayahText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 22, height: 2, fontWeight: FontWeight.w600),
+                                ),
+                                const Divider(height: 22),
+                                const Text('التفسير', style: TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 6),
+                                SelectableText(
+                                  verses[index]!,
+                                  style: const TextStyle(fontSize: 17, height: 1.9),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
