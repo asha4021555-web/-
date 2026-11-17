@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'quran_data.dart';
 
-const _tafsirGreen = Color(0xFF176B45);
+const _tafsirGreen = Color(0xFF493326);
 
 class TafsirPage extends StatefulWidget {
   final String initialSource;
