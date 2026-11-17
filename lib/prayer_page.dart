@@ -229,12 +229,12 @@ class _PrayerPageState extends State<PrayerPage> {
     await prefs.setDouble('prayer_longitude',c.longitude);
     await prefs.setString('prayer_city',name);
     if(!mounted)return;
-    setState(()=>{coordinates=c,cityName=name,error=null});
+    setState(() { coordinates=c; cityName=name; error=null; });
     prayerSettingsVersion.value++;
     if(alerts)await _refresh();
   }
   Future<void> _locate() async {
-    setState(()=>{loading=true,error=null});
+    setState(() { loading=true; error=null; });
     try {
       final p=await _getPosition();
       await _saveCoordinates(Coordinates(p.latitude,p.longitude),'الموقع الحالي');
