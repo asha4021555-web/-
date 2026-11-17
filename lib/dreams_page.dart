@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class DreamsPage extends StatefulWidget {
   const DreamsPage({super.key});
+  static List<MapEntry<String, String>> get searchItems => _DreamsPageState.symbols;
   @override State<DreamsPage> createState() => _DreamsPageState();
 }
 

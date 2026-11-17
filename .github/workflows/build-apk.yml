@@ -115,6 +115,64 @@ jobs:
           p.write_text(s)
           PY
 
+      - name: Bundle 1000 verified Sahih hadiths
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 \
+            https://github.com/Jaguar16/open-hadith-data/releases/download/v1.1.0/collections-json.zip \
+            --output /tmp/open-hadith-data.zip
+          python3 - <<'PY'
+          import json, zipfile
+          from pathlib import Path
+
+          wanted = {'bukhari': [], 'muslim': []}
+          with zipfile.ZipFile('/tmp/open-hadith-data.zip') as archive:
+              for name in archive.namelist():
+                  if not name.lower().endswith('.json'):
+                      continue
+                  try:
+                      data = json.loads(archive.read(name))
+                  except Exception:
+                      continue
+                  collection = (data.get('collection') or {}).get('id')
+                  if collection not in wanted:
+                      stem = Path(name).stem.lower()
+                      collection = stem if stem in wanted else None
+                  if collection not in wanted:
+                      continue
+                  records = []
+                  for book in data.get('books', []):
+                      records.extend(book.get('hadiths', []))
+                  records.extend(data.get('hadiths', []))
+                  if records and len(records) > len(wanted[collection]):
+                      wanted[collection] = records
+
+          output = []
+          for collection, limit, arabic_name in [
+              ('bukhari', 700, 'صحيح البخاري'),
+              ('muslim', 300, 'صحيح مسلم'),
+          ]:
+              records = wanted[collection]
+              usable = [h for h in records if (h.get('text_ar') or '').strip()]
+              if len(usable) < limit:
+                  raise SystemExit(f'Not enough Arabic hadiths in {collection}: {len(usable)}')
+              for h in usable[:limit]:
+                  number = str(h.get('hadith_number') or '')
+                  output.append({
+                      'reference': h.get('reference') or f'{arabic_name} {number}',
+                      'text_ar': h['text_ar'].strip(),
+                      'source': arabic_name,
+                      'grade': h.get('grade_ar') or 'صحيح بالإدراج في الصحيح',
+                      'url_source': h.get('url_source') or '',
+                  })
+
+          if len(output) != 1000:
+              raise SystemExit(f'Expected exactly 1000 hadiths, got {len(output)}')
+          Path('assets/hadiths-1000.json').write_text(
+              json.dumps(output, ensure_ascii=False), encoding='utf-8')
+          print('Bundled exactly', len(output), 'full Arabic Sahih hadiths.')
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 

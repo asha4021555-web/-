@@ -54,7 +54,7 @@ class _HomePageState extends State<HomePage> {
       const DhikrPage(after:false),
     ];
     return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-      appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),
+      appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>_open(const GlobalSearchPage(),'بحث شامل'))]),
       body:IndexedStack(index:tab,children:pages),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const[
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'الرئيسية'),
@@ -150,7 +150,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
@@ -807,6 +807,202 @@ Entry('23. يحيى عليه السلام','آتاه الله الحكم صبي�
 Entry('24. عيسى عليه السلام','وُلد من مريم بلا أب آية من الله، وأيّده بالمعجزات بإذنه ورفعه إليه.'),
 Entry('25. محمد ﷺ','خاتم الأنبياء، بعثه الله رحمة للعالمين وأنزل عليه القرآن، ودعا إلى التوحيد وصبر على الأذى.')
 ];
+
+class HadithLibraryPage extends StatefulWidget {
+  const HadithLibraryPage({super.key});
+  @override State<HadithLibraryPage> createState() => _HadithLibraryPageState();
+}
+class _HadithLibraryPageState extends State<HadithLibraryPage> {
+  late Future<List<dynamic>> _hadiths;
+  @override void initState() { super.initState(); _hadiths = _load(); }
+  Future<List<dynamic>> _load() async {
+    final raw = await rootBundle.loadString('assets/hadiths-1000.json');
+    final decoded = jsonDecode(raw);
+    if (decoded is! List || decoded.length != 1000) {
+      throw Exception('ملف الأحاديث غير مكتمل؛ العدد المتوقع 1000 حديث.');
+    }
+    return decoded;
+  }
+  @override Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
+    future: _hadiths,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(snapshot.error.toString(), textAlign: TextAlign.center)));
+      }
+      final rows = snapshot.data!;
+      return ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: rows.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) return const Padding(
+            padding: EdgeInsets.fromLTRB(8, 8, 8, 16),
+            child: Text('1000 حديث من صحيح البخاري وصحيح مسلم، بالنص العربي الكامل مع المصدر والرقم ودرجة الصحة.',
+              style: TextStyle(color: green, fontWeight: FontWeight.bold, height: 1.7)),
+          );
+          final h = Map<String, dynamic>.from(rows[i - 1] as Map);
+          return Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text('\${i}. \${h['reference'] ?? 'حديث رقم $i'}',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: green)),
+                const SizedBox(height: 8),
+                SelectableText((h['text_ar'] ?? '').toString(),
+                  style: const TextStyle(fontSize: 19, height: 2)),
+                const SizedBox(height: 10),
+                Text('\${h['source'] ?? ''} • \${h['grade'] ?? 'صحيح بالإدراج في الصحيح'}',
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ]),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+class _SearchHit {
+  final String category, title, body;
+  final int? section, surah;
+  const _SearchHit(this.category, this.title, this.body, {this.section, this.surah});
+}
+String _foldArabic(String value) => value.toLowerCase()
+  .replaceAll(RegExp(r'[\u064B-\u065F\u0670\u0640]'), '')
+  .replaceAll(RegExp(r'[أإآٱ]'), 'ا')
+  .replaceAll('ى', 'ي')
+  .replaceAll('ة', 'ه');
+
+class GlobalSearchPage extends StatefulWidget {
+  const GlobalSearchPage({super.key});
+  @override State<GlobalSearchPage> createState() => _GlobalSearchPageState();
+}
+class _GlobalSearchPageState extends State<GlobalSearchPage> {
+  final TextEditingController _controller = TextEditingController();
+  final List<_SearchHit> _index = [];
+  List<_SearchHit> _results = [];
+  bool _loading = true;
+  String _error = '';
+
+  @override void initState() { super.initState(); _buildIndex(); }
+  @override void dispose() { _controller.dispose(); super.dispose(); }
+
+  void _add(String category, String title, String body, {int? section, int? surah}) {
+    if (body.trim().isEmpty) return;
+    _index.add(_SearchHit(category, title, body, section: section, surah: surah));
+  }
+
+  Future<void> _buildIndex() async {
+    try {
+      final quranText = await rootBundle.loadString('assets/quran-uthmani.txt');
+      final ayahs = quranText.split('\n');
+      if (ayahs.length != 6236) throw Exception('ملف القرآن غير مكتمل.');
+      var position = 0;
+      for (var s = 0; s < quranAyahCounts.length; s++) {
+        for (var a = 1; a <= quranAyahCounts[s]; a++) {
+          _add('القرآن الكريم', 'سورة \${quranSurahNames[s]} - الآية $a',
+            ayahs[position++], surah: s + 1);
+        }
+      }
+
+      for (final d in morning) { _add('أذكار الصباح', d.t, d.t, section: 1); }
+      for (final d in evening) { _add('أذكار المساء', d.t, d.t, section: 1); }
+      for (final d in after) { _add('أذكار بعد الصلاة', d.t, d.t, section: 2); }
+      for (final e in duas) { _add('الأدعية', e.title, e.body, section: 3); }
+      for (final e in stories) { _add('قصص الأنبياء', e.title, e.body, section: 5); }
+      for (var i = 0; i < NamesPage.names.length; i++) {
+        _add('أسماء الله الحسنى', '\${i + 1}. \${NamesPage.names[i]}', NamesPage.names[i], section: 6);
+      }
+      for (final item in DreamsPage.searchItems) {
+        _add('تفسير الأحلام', item.key, item.value, section: 11);
+      }
+
+      final hadithText = await rootBundle.loadString('assets/hadiths-1000.json');
+      final hadithRows = jsonDecode(hadithText);
+      if (hadithRows is! List || hadithRows.length != 1000) {
+        throw Exception('قاعدة الأحاديث غير مكتملة.');
+      }
+      for (final row in hadithRows) {
+        final h = Map<String, dynamic>.from(row as Map);
+        _add('الأحاديث النبوية', (h['reference'] ?? 'حديث').toString(),
+          '\${h['text_ar'] ?? ''} \${h['source'] ?? ''}', section: 4);
+      }
+      if (mounted) setState(() { _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.toString(); });
+    }
+  }
+
+  void _search(String value) {
+    final query = _foldArabic(value.trim());
+    setState(() {
+      if (query.length < 2) { _results = []; return; }
+      _results = _index.where((hit) =>
+        _foldArabic('\${hit.title} \${hit.body} \${hit.category}').contains(query)
+      ).take(150).toList();
+    });
+  }
+
+  void _openHit(_SearchHit hit) {
+    Widget page;
+    String title = hit.category;
+    if (hit.surah != null) {
+      final n = hit.surah!;
+      page = SurahReader(number: n, name: quranSurahNames[n - 1]);
+      title = 'سورة \${quranSurahNames[n - 1]}';
+    } else if (hit.section == 4) {
+      page = const HadithLibraryPage();
+    } else {
+      page = SectionPage(index: hit.section ?? 0);
+    }
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => Directionality(textDirection: TextDirection.rtl,
+        child: Scaffold(appBar: AppBar(title: Text(title), backgroundColor: green, foregroundColor: Colors.white), body: page)),
+    ));
+  }
+
+  @override Widget build(BuildContext context) => Column(children: [
+    Padding(
+      padding: const EdgeInsets.all(12),
+      child: TextField(
+        controller: _controller,
+        autofocus: true,
+        textInputAction: TextInputAction.search,
+        onChanged: _search,
+        decoration: InputDecoration(
+          hintText: 'ابحث عن آية أو حديث أو ذكر أو دعاء أو موضوع...',
+          prefixIcon: const Icon(Icons.search, color: green),
+          suffixIcon: IconButton(icon: const Icon(Icons.close), onPressed: () { _controller.clear(); _search(''); }),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    ),
+    Expanded(child: _loading
+      ? const Center(child: CircularProgressIndicator())
+      : _error.isNotEmpty
+        ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(_error, textAlign: TextAlign.center)))
+        : _controller.text.trim().length < 2
+          ? const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('اكتب كلمتين على الأقل للبحث في القرآن والأذكار والأدعية والأحاديث والقصص والأسماء وتفسير الأحلام.', textAlign: TextAlign.center, style: TextStyle(height: 1.8))))
+          : _results.isEmpty
+            ? const Center(child: Text('لا توجد نتائج مطابقة.'))
+            : ListView.separated(
+                itemCount: _results.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final hit = _results[i];
+                  return ListTile(
+                    title: Text(hit.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: Text('\${hit.category} • \${hit.body}', maxLines: 3, overflow: TextOverflow.ellipsis),
+                    onTap: () => _openHit(hit),
+                  );
+                },
+              )),
+  ]);
+}
+
 class EntriesPage extends StatelessWidget{final List<Entry> items;const EntriesPage({super.key,required this.items});@override Widget build(BuildContext c)=>ListView.builder(padding:const EdgeInsets.all(12),itemCount:items.length,itemBuilder:(c,i)=>Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(items[i].title,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),const SizedBox(height:8),Text(items[i].body,style:const TextStyle(fontSize:18,height:1.8))]))));}
 class NamesPage extends StatelessWidget{const NamesPage({super.key});static const names=['الرَّحْمَن','الرَّحِيم','الْمَلِك','الْقُدُّوس','السَّلَام','الْمُؤْمِن','الْمُهَيْمِن','الْعَزِيز','الْجَبَّار','الْمُتَكَبِّر','الْخَالِق','الْبَارِئ','الْمُصَوِّر','الْغَفَّار','الْقَهَّار','الْوَهَّاب','الرَّزَّاق','الْفَتَّاح','الْعَلِيم','الْقَابِض','الْبَاسِط','الْخَافِض','الرَّافِع','الْمُعِزّ','الْمُذِلّ','السَّمِيع','الْبَصِير','الْحَكَم','الْعَدْل','اللَّطِيف','الْخَبِير','الْحَلِيم','الْعَظِيم','الْغَفُور','الشَّكُور','الْعَلِيّ','الْكَبِير','الْحَفِيظ','الْمُقِيت','الْحَسِيب','الْجَلِيل','الْكَرِيم','الرَّقِيب','الْمُجِيب','الْوَاسِع','الْحَكِيم','الْوَدُود','الْمَجِيد','الْبَاعِث','الشَّهِيد','الْحَقّ','الْوَكِيل','الْقَوِيّ','الْمَتِين','الْوَلِيّ','الْحَمِيد','الْمُحْصِي','الْمُبْدِئ','الْمُعِيد','الْمُحْيِي','الْمُمِيت','الْحَيّ','الْقَيُّوم','الْوَاجِد','الْمَاجِد','الْوَاحِد','الصَّمَد','الْقَادِر','الْمُقْتَدِر','الْمُقَدِّم','الْمُؤَخِّر','الْأَوَّل','الْآخِر','الظَّاهِر','الْبَاطِن','الْوَالِي','الْمُتَعَالِي','الْبَرّ','التَّوَّاب','الْمُنْتَقِم','الْعَفُوّ','الرَّؤُوف','مَالِكُ الْمُلْك','ذُو الْجَلَالِ وَالْإِكْرَام','الْمُقْسِط','الْجَامِع','الْغَنِيّ','الْمُغْنِي','الْمَانِع','الضَّارّ','النَّافِع','النُّور','الْهَادِي','الْبَدِيع','الْبَاقِي','الْوَارِث','الرَّشِيد','الصَّبُور'];@override Widget build(BuildContext c)=>GridView.builder(padding:const EdgeInsets.all(12),itemCount:names.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,crossAxisSpacing:8,mainAxisSpacing:8,childAspectRatio:2.5),itemBuilder:(c,i)=>Card(child:Center(child:Text('${i+1}. ${names[i]}',style:const TextStyle(color:green,fontWeight:FontWeight.bold)))));}
 class InfoPage extends StatelessWidget{final IconData icon;final String title,message;const InfoPage({super.key,required this.icon,required this.title,required this.message});@override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(icon,size:64,color:green),const SizedBox(height:16),Text(title,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(message,textAlign:TextAlign.center,style:const TextStyle(fontSize:17,height:1.7))])));}
