@@ -15,7 +15,7 @@ import 'dart:math' as math;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-const _green = Color(0xFF176B45);
+const _green = Color(0xFF493326);
 final _notifier = FlutterLocalNotificationsPlugin();
 final ValueNotifier<int> prayerSettingsVersion = ValueNotifier(0);
 
@@ -630,7 +630,7 @@ class _QiblaPageState extends State<QiblaPage>{
     const Text('بوصلة اتجاه القبلة',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),
     const SizedBox(height:18),
     SizedBox(width:270,height:270,child:Stack(alignment:Alignment.center,children:[
-     Container(width:260,height:260,decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xFFF8F7F0),border:Border.all(color:_green,width:5),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:10,offset:Offset(0,4))])),
+     Container(width:260,height:260,decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xFFF5F0E6),border:Border.all(color:_green,width:5),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:10,offset:Offset(0,4))])),
      const Positioned(top:12,child:Text('شمال',style:TextStyle(fontWeight:FontWeight.bold,color:_green))),
      const Positioned(bottom:12,child:Text('جنوب',style:TextStyle(color:Colors.black54))),
      const Positioned(left:12,child:Text('شرق',style:TextStyle(color:Colors.black54))),
