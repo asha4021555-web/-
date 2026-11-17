@@ -11,8 +11,8 @@ import 'dreams_page.dart';
 final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
 void main()=>runApp(const NoorApp());
 const green=Color(0xFF176B45);
-const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام'];
-const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay];
+const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر'];
+const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book];
 class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green),scaffoldBackgroundColor:const Color(0xFFF7F8F3)),home:const HomePage());}
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -31,21 +31,11 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height:14),
         const PrayerHomeSummary(),
         const SizedBox(height:14),
-        Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment:CrossAxisAlignment.stretch, children:[
-          const Text('الوصول السريع',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),
-          const SizedBox(height:8),
-          Row(children:[
-            Expanded(child: OutlinedButton.icon(onPressed:()=>_open(const TafsirPage(),'تفسير القرآن الكريم'),icon:const Icon(Icons.menu_book),label:const Text('التفسير'))),
-            const SizedBox(width:8),
-            Expanded(child: OutlinedButton.icon(onPressed:()=>_open(const DreamsPage(),'تفسير الأحلام'),icon:const Icon(Icons.nights_stay),label:const Text('الأحلام'))),
-          ]),
-        ]))),
-        const SizedBox(height:10),
         Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           const Text('محتويات نور الإسلام',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),
           const SizedBox(height:8),
           Wrap(spacing:8,runSpacing:8,children:[
-            for(final item in [(0,'القرآن الكريم',Icons.menu_book),(1,'أذكار الصباح والمساء',Icons.wb_twilight),(2,'أذكار بعد الصلاة',Icons.mosque),(3,'الأدعية',Icons.volunteer_activism),(4,'الأحاديث',Icons.auto_stories),(5,'قصص الأنبياء',Icons.history_edu),(6,'أسماء الله الحسنى',Icons.star),(7,'السبحة',Icons.radio_button_checked)])
+            for(final item in [(0,'القرآن الكريم',Icons.menu_book),(1,'أذكار الصباح والمساء',Icons.wb_twilight),(2,'أذكار بعد الصلاة',Icons.mosque),(3,'الأدعية',Icons.volunteer_activism),(4,'الأحاديث',Icons.auto_stories),(5,'قصص الأنبياء',Icons.history_edu),(6,'أسماء الله الحسنى',Icons.star),(7,'السبحة',Icons.radio_button_checked),(10,'تفسير القرآن الكريم',Icons.menu_book_outlined),(11,'تفسير الأحلام',Icons.nights_stay),(12,'التفسير الميسّر',Icons.menu_book)])
               ActionChip(avatar:Icon(item.$3,color:green,size:18),label:Text(item.$2),onPressed:()=>_open(SectionPage(index:item.$1),titles[item.$1])),
           ]),
         ]))),
@@ -57,8 +47,6 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height:10),
         ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
         const HijriOffsetSetting(),
-        ListTile(leading:const Icon(Icons.menu_book,color:green),title:const Text('تفسير القرآن الكريم'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const TafsirPage(),'تفسير القرآن الكريم')),
-        ListTile(leading:const Icon(Icons.nights_stay,color:green),title:const Text('تفسير الأحلام'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const DreamsPage(),'تفسير الأحلام')),
       ]),
 
       const QiblaPage(),
@@ -162,7 +150,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const EntriesPage(items:hadiths),5=>const EntriesPage(items:stories),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
