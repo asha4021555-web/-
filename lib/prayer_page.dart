@@ -111,6 +111,8 @@ class _PrayerPageState extends State<PrayerPage> {
   }
   Future<void> _toggle(bool value) async {
     if (value && position == null) { await _locate(); if (position == null) return; }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('prayer_alerts', value);
     setState(() => alerts = value);
     if (value) {
       try { await _refresh(); _msg('تم ضبط التنبيهات للأيام السبعة القادمة.'); }
