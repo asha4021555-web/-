@@ -45,19 +45,19 @@ class _DreamsPageState extends State<DreamsPage> {
     final q = query.trim();
     final filtered = symbols.where((e) => e.key.contains(q) || e.value.contains(q)).toList();
     return Directionality(textDirection: TextDirection.rtl, child: ListView(padding: const EdgeInsets.all(16), children: [
-      const Text('تعبير الرؤى والأحلام', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF176B45))),
+      const Text('تعبير الرؤى والأحلام', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF493326))),
       const SizedBox(height: 8),
       const Text('معجم موسّع لرموز شائعة في كتب التعبير. المعاني احتمالية وتتغير باختلاف الرائي وتفاصيل الرؤيا، وليست علمًا بالغيب أو أحكامًا قطعية.'),
       const SizedBox(height: 12),
       TextField(decoration: InputDecoration(labelText: 'ابحث عن رمز في المنام', hintText: 'مثل: الماء، المطر، البيت، السفر', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (v) => setState(() => query = v)),
       const SizedBox(height: 12),
-      const Text('معجم الرموز', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF176B45))),
+      const Text('معجم الرموز', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF493326))),
       for (final e in filtered)
         Card(margin: const EdgeInsets.only(top: 7), child: ExpansionTile(title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)), childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14), children: [Text(e.value, style: const TextStyle(fontSize: 16, height: 1.8))])),
       if (filtered.isEmpty) const Padding(padding: EdgeInsets.all(18), child: Text('الرمز غير موجود في المعجم حاليًا.', textAlign: TextAlign.center)),
       const SizedBox(height: 12),
       Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('آداب التعامل مع الرؤيا', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF176B45), fontSize: 17)),
+        const Text('آداب التعامل مع الرؤيا', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF493326), fontSize: 17)),
         const SizedBox(height: 6),
         const Text('الرؤيا الصالحة يُحمد الله عليها، ولا تُقص إلا على محب أو ناصح. وإذا رأى الإنسان ما يكره فليستعذ بالله من شرها ومن الشيطان، وينفث عن يساره ثلاثًا، ولا يحدّث بها أحدًا.'),
         const SizedBox(height: 8),
