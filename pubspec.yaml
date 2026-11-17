@@ -26,6 +26,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -34,3 +35,9 @@ flutter:
     - assets/quran-pages.json
     - assets/hadiths-1000.json
     - assets/QURAN_SOURCE.txt
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/noor_icon.jpg"
+  min_sdk_android: 21
