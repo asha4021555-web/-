@@ -20,26 +20,24 @@ class _TafsirPageState extends State<TafsirPage> {
   void _load() { setState(() { data = _fetch(); }); }
 
   Future<Map<int, String>> _fetch() async {
-    final uri = source == 'muyassar'
-      ? Uri.parse('https://quranenc.com/api/v1/translation/sura/arabic_moyassar/' + surah.toString())
-      : Uri.parse('https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@v1.2.3/tafsir/ar-tafsir-ibn-kathir/' + surah.toString() + '.json');
+    final key = source == 'muyassar' ? 'arabic_moyassar' : 'arabic_saadi';
+    final uri = Uri.parse('https://quranenc.com/api/v1/tafsir/sura/' + key + '/' + surah.toString());
     final response = await http.get(uri).timeout(const Duration(seconds: 25));
     if (response.statusCode != 200) throw Exception('المصدر لم يستجب. تأكد من الإنترنت ثم أعد المحاولة.');
     final Map<int, String> result = {};
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    if (source == 'muyassar') {
-      final rows = decoded['result'] as List;
-      for (final row in rows) {
-        final n = int.tryParse(row['aya'].toString());
-        if (n != null) result[n] = row['translation'].toString();
-      }
-    } else {
-      final rows = decoded as List;
-      for (final row in rows) {
-        final n = int.tryParse(row['ayah'].toString());
-        if (n != null) result[n] = row['text'].toString();
-      }
+    final rows = decoded is Map ? decoded['result'] : decoded;
+    if (rows is! List) throw Exception('صيغة بيانات التفسير غير متوقعة.');
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final text = (row['text'] ?? '').toString().trim();
+      final arabicCount = RegExp(r'[\u0600-\u06FF]').allMatches(text).length;
+      if (text.isEmpty || arabicCount < 8) continue;
+      final from = int.tryParse((row['from_aya'] ?? row['aya'] ?? '1').toString()) ?? 1;
+      final to = int.tryParse((row['to_aya'] ?? row['from_aya'] ?? row['aya'] ?? from).toString()) ?? from;
+      for (var n = from; n <= to; n++) { result[n] = text; }
     }
+    if (result.isEmpty) throw Exception('لم يصل تفسير عربي صالح لهذه السورة من المصدر.');
     return result;
   }
 
@@ -61,7 +59,7 @@ class _TafsirPageState extends State<TafsirPage> {
         value: source, isExpanded: true, decoration: const InputDecoration(labelText: 'اختر التفسير'),
         items: const [
           DropdownMenuItem(value: 'muyassar', child: Text('التفسير الميسّر - مجمع الملك فهد')),
-          DropdownMenuItem(value: 'ibnkathir', child: Text('تفسير ابن كثير')),
+          DropdownMenuItem(value: 'ibnkathir', child: Text('تفسير السعدي')),
         ],
         onChanged: (v) { if (v == null) return; setState(() { source = v; }); _load(); },
       ),
@@ -91,7 +89,7 @@ class _TafsirPageState extends State<TafsirPage> {
         },
       ),
       const SizedBox(height: 10),
-      const Text('المصادر: التفسير الميسّر عبر QuranEnc / مجمع الملك فهد لطباعة المصحف الشريف؛ تفسير ابن كثير عبر نسخة Tafsir API الرقمية. قد تختلف صياغة الطبعات، والنصوص المعروضة من المصادر كما وردت.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.6)),
+      const Text('المصادر: الالتفسير الميسّر عبر موسوعة القرآن الكريم / مجمع الملك فهد لطباعة المصحف الشريف؛ تفسير السعدي عبر موسوعة القرآن الكريم. قد تختلف صياغة الطبعات، والنصوص المعروضة من المصادر كما وردت.', style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.6)),
     ]));
   }
 }
