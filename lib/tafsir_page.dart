@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'quran_data.dart';
 
 const _tafsirGreen = Color(0xFF176B45);
 
@@ -42,7 +43,7 @@ class _TafsirPageState extends State<TafsirPage> {
   }
 
   @override Widget build(BuildContext context) {
-    final count = QuranPage.surahAyahCounts[surah - 1];
+    final count = quranAyahCounts[surah - 1];
     if (ayah > count) ayah = count;
     return Directionality(textDirection: TextDirection.rtl, child: ListView(padding: const EdgeInsets.all(16), children: [
       const Text('تفسير القرآن الكريم', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _tafsirGreen)),
@@ -51,7 +52,7 @@ class _TafsirPageState extends State<TafsirPage> {
       const SizedBox(height: 12),
       DropdownButtonFormField<int>(
         value: surah, isExpanded: true, decoration: const InputDecoration(labelText: 'السورة'),
-        items: List.generate(114, (i) => DropdownMenuItem(value: i + 1, child: Text((i + 1).toString() + ' - ' + QuranPage.surahs[i]))),
+        items: List.generate(114, (i) => DropdownMenuItem(value: i + 1, child: Text((i + 1).toString() + ' - ' + quranSurahNames[i]))),
         onChanged: (v) { if (v == null) return; setState(() { surah = v; ayah = 1; }); _load(); },
       ),
       const SizedBox(height: 10),
