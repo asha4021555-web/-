@@ -155,13 +155,13 @@ jobs:
               <service android:name=".AdhanPlaybackService" android:enabled="true" android:exported="false" android:foregroundServiceType="mediaPlayback" />
           '''
           if 'AdhanAlarmReceiver' not in s:
-              s = s.replace('</application>', adhan_components + '\\n</application>', 1)
+              s = s.replace('</application>', adhan_components + '\n</application>', 1)
           p.write_text(s)
 
           import re
           gradle_files = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
           gradle = next(x for x in gradle_files if x.exists()).read_text()
-          match = re.search(r'namespace\\s*[= ]\\s*["\\']([^"\\']+)["\\']', gradle)
+          match = re.search(r'namespace\s*=\s*"([^"]+)"', gradle)
           if not match:
               raise SystemExit('Could not determine Android namespace for adhan service')
           package = match.group(1)
