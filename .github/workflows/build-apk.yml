@@ -133,6 +133,7 @@ jobs:
               'android.permission.ACCESS_COARSE_LOCATION',
               'android.permission.FOREGROUND_SERVICE',
               'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+              'android.permission.WAKE_LOCK',
           ]:
               if permission not in s:
                   tag = '<uses-permission android:name="{}"/>'.format(permission)
