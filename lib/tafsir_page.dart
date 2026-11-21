@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'quran_data.dart';
 
 const _tafsirGreen = Color(0xFF493326);
@@ -25,7 +26,7 @@ class _TafsirPageState extends State<TafsirPage> {
     source = widget.initialSource;
     data = _fetch(surah, source);
     quranText = rootBundle.loadString('assets/quran-uthmani.txt').then(
-      (value) => value.split('\\n').where((line) => line.trim().isNotEmpty).toList(),
+      (value) => value.splitLines().where((line) => line.trim().isNotEmpty).toList(),
     );
   }
 
@@ -35,56 +36,81 @@ class _TafsirPageState extends State<TafsirPage> {
     });
   }
 
+  String _cacheKey(int surahNumber, String tafsirSource) =>
+      'noor_tafsir_${tafsirSource}_${surahNumber}_v1';
+
   Future<Map<int, String>> _fetch(int surahNumber, String tafsirSource) async {
-    final count = quranAyahCounts[surahNumber - 1];
-    final key = tafsirSource == 'muyassar' ? 'arabic_moyassar' : 'arabic_saadi';
-    final uri = Uri.https(
-      'quranenc.com',
-      '/api/v1/tafsir/sura/$key/$surahNumber',
-    );
-    final response = await http.get(uri, headers: const {
-      'Accept': 'application/json',
-    }).timeout(const Duration(seconds: 40));
-
-    if (response.statusCode != 200) {
-      throw Exception('تعذر تحميل التفسير من المصدر (HTTP ${response.statusCode}). تأكد من الإنترنت ثم أعد المحاولة.');
-    }
-
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    final rows = decoded is Map ? decoded['result'] : decoded;
-    if (rows is! List || rows.isEmpty) {
-      throw Exception('المصدر لم يُرجع تفسيرًا لهذه السورة.');
-    }
-
-    final byAyah = <int, List<String>>{};
-    for (final row in rows) {
-      if (row is! Map) continue;
-      final text = (row['text'] ?? '').toString().trim();
-      final from = int.tryParse((row['from_aya'] ?? '').toString());
-      final to = int.tryParse((row['to_aya'] ?? row['from_aya'] ?? '').toString());
-      if (text.isEmpty || from == null || to == null) continue;
-      if (from < 1 || to < from || from > count) continue;
-      final last = to > count ? count : to;
-      for (var aya = from; aya <= last; aya++) {
-        final blocks = byAyah.putIfAbsent(aya, () => <String>[]);
-        if (!blocks.contains(text)) blocks.add(text);
+    final prefs = await SharedPreferences.getInstance();
+    final key = _cacheKey(surahNumber, tafsirSource);
+    Map<int, String>? cached;
+    final saved = prefs.getString(key);
+    if (saved != null && saved.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(saved) as Map<String, dynamic>;
+        cached = decoded.map((k, v) => MapEntry(int.parse(k), v.toString()));
+      } catch (_) {
+        await prefs.remove(key);
       }
     }
 
-    final missing = <int>[];
-    for (var aya = 1; aya <= count; aya++) {
-      if (byAyah[aya] == null || byAyah[aya]!.isEmpty) {
-        missing.add(aya);
-      }
-    }
-    if (missing.isNotEmpty) {
-      throw Exception('التفسير الذي وصل من المصدر ناقص في هذه السورة. الآيات التي لم يصل تفسيرها: ${missing.take(20).join('، ')}${missing.length > 20 ? ' وغيرها' : ''}. لم نضع نصًا بديلًا من عندنا.');
-    }
+    try {
+      final count = quranAyahCounts[surahNumber - 1];
+      final tafsirKey = tafsirSource == 'muyassar' ? 'arabic_moyassar' : 'arabic_saadi';
+      final uri = Uri.https(
+        'quranenc.com',
+        '/api/v1/tafsir/sura/$tafsirKey/$surahNumber',
+      );
+      final response = await http.get(uri, headers: const {
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 40));
 
-    return {
-      for (final entry in byAyah.entries)
-        entry.key: entry.value.join('\n\n'),
-    };
+      if (response.statusCode != 200) {
+        throw Exception('تعذر تحميل التفسير من المصدر (HTTP ${response.statusCode}).');
+      }
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final rows = decoded is Map ? decoded['result'] : decoded;
+      if (rows is! List || rows.isEmpty) {
+        throw Exception('المصدر لم يُرجع تفسيرًا لهذه السورة.');
+      }
+
+      final byAyah = <int, List<String>>{};
+      for (final row in rows) {
+        if (row is! Map) continue;
+        final text = (row['text'] ?? '').toString().trim();
+        final from = int.tryParse((row['from_aya'] ?? '').toString());
+        final to = int.tryParse((row['to_aya'] ?? row['from_aya'] ?? '').toString());
+        if (text.isEmpty || from == null || to == null) continue;
+        if (from < 1 || to < from || from > count) continue;
+        final last = to > count ? count : to;
+        for (var aya = from; aya <= last; aya++) {
+          final blocks = byAyah.putIfAbsent(aya, () => <String>[]);
+          if (!blocks.contains(text)) blocks.add(text);
+        }
+      }
+
+      final missing = <int>[];
+      for (var aya = 1; aya <= count; aya++) {
+        if (byAyah[aya] == null || byAyah[aya]!.isEmpty) {
+          missing.add(aya);
+        }
+      }
+      if (missing.isNotEmpty) {
+        throw Exception('التفسير الذي وصل من المصدر ناقص في هذه السورة؛ لم نعرض نصًا غير موثّق.');
+      }
+
+      final result = <int, String>{
+        for (final entry in byAyah.entries)
+          entry.key: entry.value.join('\n\n'),
+      };
+      await prefs.setString(key, jsonEncode({
+        for (final entry in result.entries) entry.key.toString(): entry.value,
+      }));
+      return result;
+    } catch (error) {
+      if (cached != null && cached.isNotEmpty) return cached;
+      rethrow;
+    }
   }
 
   @override
@@ -103,7 +129,7 @@ class _TafsirPageState extends State<TafsirPage> {
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _tafsirGreen),
                 ),
                 const SizedBox(height: 5),
-                const Text('التفسير كاملًا للسورة المختارة، آيةً آيةً، من مصدره. يلزم اتصال بالإنترنت لتحميل النص.'),
+                const Text('يُحمّل التفسير أول مرة من مصدره، ثم يُحفظ على الهاتف لقراءته دون إنترنت.'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<int>(
                   value: surah,
@@ -242,7 +268,7 @@ class _TafsirPageState extends State<TafsirPage> {
           const Padding(
             padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: Text(
-              'المصدر: موسوعة القرآن الكريم QuranEnc. يُعرض النص كما يرد من المصدر دون إعادة صياغة.',
+              'المصدر: موسوعة القرآن الكريم QuranEnc. تُحفظ السور التي تم تحميلها على الهاتف للقراءة دون إنترنت.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11, color: Colors.black54),
             ),
