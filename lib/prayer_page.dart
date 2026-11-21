@@ -147,7 +147,7 @@ String _timeText(DateTime d) {
   return h.toString() + ':' + d.minute.toString().padLeft(2, '0') + (d.hour < 12 ? ' ص' : ' م');
 }
 
-Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey) async {
+Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? audioPath) async {
   await _initAlerts();
   await _notifier.cancelAll();
   const details = NotificationDetails(android: AndroidNotificationDetails(
@@ -462,7 +462,7 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _refresh() async {
     final c=coordinates;
     if(c==null)return;
-    await _scheduleAlerts(c,iqama,methodKey);
+    await _scheduleAlerts(c,iqama,methodKey,audioPath);
   }
   Future<void> _toggle(bool value) async {
     if(value&&coordinates==null){await _locate();if(coordinates==null)return;}
