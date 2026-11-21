@@ -147,7 +147,7 @@ String _timeText(DateTime d) {
   return h.toString() + ':' + d.minute.toString().padLeft(2, '0') + (d.hour < 12 ? ' ص' : ' م');
 }
 
-Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? audioPath) async {
+Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath) async {
   await _initAlerts();
   await _notifier.cancelAll();
   const details = NotificationDetails(android: AndroidNotificationDetails(
@@ -181,7 +181,7 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
   }
   await _adhanChannel.invokeMethod('scheduleAdhan', {
     'times': adhanTimes,
-    'audioPath': audioPath,
+    'audioPath': selectedAudioPath,
   }).catchError((_) {});
 }
 
