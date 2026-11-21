@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_compass/flutter_compass.dart';
@@ -17,6 +18,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 const _green = Color(0xFF493326);
 final _notifier = FlutterLocalNotificationsPlugin();
+const _adhanChannel = MethodChannel('noor_adhan_background');
 final ValueNotifier<int> prayerSettingsVersion = ValueNotifier(0);
 
 final Map<String, Coordinates> _knownCities = {
@@ -156,10 +158,12 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey) async {
   final now = DateTime.now();
   const prayers = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
   const names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
+  final adhanTimes = <int>[];
   for (var day = 0; day < 7; day++) {
     final date = DateTime(now.year, now.month, now.day + day);
     for (var i = 0; i < prayers.length; i++) {
       final at = _getTime(c, date, prayers[i], methodKey);
+      if (at.isAfter(now)) adhanTimes.add(at.millisecondsSinceEpoch);
       final events = [at.subtract(const Duration(minutes: 10)), at, at.add(Duration(minutes: iqama))];
       final labels = ['باقي 10 دقائق على صلاة ' + names[i], 'حان الآن وقت صلاة ' + names[i], 'موعد الإقامة لصلاة ' + names[i]];
       for (var kind = 0; kind < events.length; kind++) {
@@ -175,6 +179,10 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey) async {
       }
     }
   }
+  await _adhanChannel.invokeMethod('scheduleAdhan', {
+    'times': adhanTimes,
+    'audioPath': audioPath,
+  }).catchError((_) {});
 }
 
 
@@ -465,7 +473,7 @@ class _PrayerPageState extends State<PrayerPage> {
     if(value){
       try{await _refresh();_msg('تم ضبط التنبيهات للأيام السبعة القادمة.');}
       catch(e){setState(()=>alerts=false);_msg('تعذر ضبط التنبيهات: '+e.toString());}
-    }else{await _notifier.cancelAll();_msg('تم إيقاف التنبيهات.');}
+    }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});_msg('تم إيقاف التنبيهات.');}
   }
   Future<void> _setIqama(int? v) async {
     if(v==null)return;
@@ -486,7 +494,8 @@ class _PrayerPageState extends State<PrayerPage> {
     await prefs.setString('adhan_audio_path',file.path);
     if(!mounted)return;
     setState(()=>audioPath=file.path);
-    _msg('تم حفظ ملف الأذان داخل التطبيق. سيُستخدم بعد تفعيل تشغيل الأذان الخلفي.');
+    if (alerts) await _refresh();
+    _msg('تم حفظ ملف الأذان. سيعمل تلقائيًا عند دخول وقت الصلاة إذا كانت التنبيهات مفعّلة.');
   }
 
   Future<void> _downloadHaramAdhan() async {
@@ -534,7 +543,8 @@ class _PrayerPageState extends State<PrayerPage> {
       await prefs.setString('adhan_audio_path', file.path);
       if (!mounted) return;
       setState(() => audioPath = file.path);
-      _msg('تمت إضافة أذان الحرم المكي وحفظه على الهاتف. اضغط «تجربة الصوت» للتأكد من تشغيله.');
+      if (alerts) await _refresh();
+      _msg('تم حفظ أذان الحرم المكي. سيعمل تلقائيًا عند دخول وقت الصلاة مع تفعيل التنبيهات.');
     } catch (e) {
       _msg('لم تتم إضافة أذان الحرم: ${e.toString()}');
     } finally {
@@ -552,6 +562,8 @@ class _PrayerPageState extends State<PrayerPage> {
     await prefs.remove('adhan_audio_path');
     if(!mounted)return;
     setState(()=>audioPath=null);
+    if (alerts) await _refresh();
+    await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});
     _msg('تم الرجوع إلى صوت إشعار الهاتف.');
   }
   void _msg(String s){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));}
