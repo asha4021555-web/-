@@ -18,7 +18,54 @@ const softGold=Color(0xFFE8D4A7);
 const ivory=Color(0xFFF5F0E6);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر','البث المباشر','المصحف المعلم للأطفال','الأذكار والأدعية اليومية'];
 const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book,Icons.live_tv,Icons.record_voice_over,Icons.auto_awesome];
-class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green).copyWith(primary:green,onPrimary:Colors.white,secondary:gold,onSecondary:const Color(0xFF332319),surface:ivory),scaffoldBackgroundColor:ivory),home:const HomePage());}
+class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green).copyWith(primary:green,onPrimary:Colors.white,secondary:gold,onSecondary:const Color(0xFF332319),surface:ivory),scaffoldBackgroundColor:ivory),home:const SplashScreen());}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+  @override State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: ivory,
+    body: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 172,
+            height: 172,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [BoxShadow(color: green.withValues(alpha: .12), blurRadius: 22, offset: const Offset(0, 8))],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset('assets/noor_icon.jpg', fit: BoxFit.contain),
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text('نور الإسلام', style: TextStyle(color: green, fontSize: 27, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('رفيقك للقرآن والذكر والعبادة', style: TextStyle(color: green, fontSize: 14)),
+        ],
+      ),
+    ),
+  );
+}
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
   @override State<HomePage> createState() => _HomePageState();
