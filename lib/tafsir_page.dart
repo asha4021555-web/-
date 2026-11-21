@@ -26,7 +26,7 @@ class _TafsirPageState extends State<TafsirPage> {
     source = widget.initialSource;
     data = _fetch(surah, source);
     quranText = rootBundle.loadString('assets/quran-uthmani.txt').then(
-      (value) => value.splitLines().where((line) => line.trim().isNotEmpty).toList(),
+      (value) => LineSplitter.split(value).where((line) => line.trim().isNotEmpty).toList(),
     );
   }
 
