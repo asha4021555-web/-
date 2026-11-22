@@ -74,7 +74,6 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
           ),
         ]),
       ]),
-      ]),
     ),
   );
 }
