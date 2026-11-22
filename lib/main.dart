@@ -607,7 +607,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               ReadingMarksControls(
                 section: 'quran_text_${widget.number}',
                 label: 'سورة ${widget.name} - موضع القراءة الحالي',
-                position: _scrollController.hasClients ? _scrollController.offset : 0,
+                getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
                 onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
               ),
               Expanded(child: ListView(
@@ -878,7 +878,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
             ReadingMarksControls(
               section: 'mushaf_pages',
               label: 'قرآن مجيد - صفحة ${index + 1}',
-              position: index.toDouble(),
+              getPosition: () => index.toDouble(),
               onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603).toInt()),
             ),
             SafeArea(top: false, child: Row(children: [
