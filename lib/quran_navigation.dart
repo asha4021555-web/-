@@ -24,10 +24,15 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
 
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    margin: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+    child: ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+      childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      title: Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF493326))),
+      subtitle: const Text('اضغط لفتح الفهرس واختيار السورة أو الآية أو الجزء', style: TextStyle(fontSize: 11)),
+      initiallyExpanded: false,
+      children: [
+      Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF493326))),
         const SizedBox(height: 10),
         const Text('الانتقال إلى سورة', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -68,6 +73,7 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF493326)),
           ),
         ]),
+      ]),
       ]),
     ),
   );
