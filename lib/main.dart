@@ -474,7 +474,6 @@ class ContinuousQuranReader extends StatefulWidget {
 
 class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
-  Timer? _scrollTimer;
   bool _scrolling = false;
   bool _restoreDone = false;
   Timer? _saveTimer;
@@ -522,31 +521,44 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     return _ContinuousReaderData(allAyahs.skip(start).take(count).toList());
   }
 
-  void _startScrolling() {
+  int _scrollRunId = 0;
+
+  Future<void> _startScrolling() async {
     if (_scrolling || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final remaining = position.maxScrollExtent - position.pixels;
+    if (remaining <= 1 || _speed <= 0) return;
+
+    final runId = ++_scrollRunId;
     setState(() => _scrolling = true);
-    _scrollTimer?.cancel();
-    _scrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      final position = _scrollController.position;
-      if (position.pixels >= position.maxScrollExtent - 1) {
-        _stopScrolling();
-        return;
+
+    // Frame-synchronized linear scrolling avoids the visible jumps from
+    // repeatedly calling jumpTo, while preserving the selected speed.
+    final durationMs = (remaining / _speed * 1000).round().clamp(1, 2147483647);
+    try {
+      await _scrollController.animateTo(
+        position.maxScrollExtent,
+        duration: Duration(milliseconds: durationMs),
+        curve: Curves.linear,
+      );
+    } finally {
+      if (mounted && runId == _scrollRunId) {
+        setState(() => _scrolling = false);
       }
-      final next = (position.pixels + _speed * 0.05).clamp(0.0, position.maxScrollExtent);
-      _scrollController.jumpTo(next);
-    });
+    }
   }
 
-  void _stopScrolling() {
-    _scrollTimer?.cancel();
-    _scrollTimer = null;
+  void _stopScrolling({bool cancelMotion = true}) {
+    ++_scrollRunId;
+    if (cancelMotion && _scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.offset);
+    }
     if (mounted && _scrolling) setState(() => _scrolling = false);
   }
 
   @override
   void dispose() {
-    _scrollTimer?.cancel();
+    ++_scrollRunId;
     _saveTimer?.cancel();
     _scrollController.removeListener(_scheduleSavePosition);
     _scrollController.dispose();
@@ -614,7 +626,9 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               Expanded(child: NotificationListener<UserScrollNotification>(
                 onNotification: (notification) {
                   if (notification.direction != ScrollDirection.idle && _scrolling) {
-                    _stopScrolling();
+                    // The user's drag takes control; avoid jumpTo here so the
+                    // manual gesture is never interrupted by our own code.
+                    _stopScrolling(cancelMotion: false);
                   }
                   return false;
                 },
