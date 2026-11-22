@@ -43,18 +43,46 @@ class _SplashScreenState extends State<SplashScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 172,
-            height: 172,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [BoxShadow(color: green.withValues(alpha: .12), blurRadius: 22, offset: const Offset(0, 8))],
+          GestureDetector(
+            onTap: () => showDialog<void>(
+              context: context,
+              barrierColor: Colors.black87,
+              builder: (dialogContext) => Dialog(
+                backgroundColor: Colors.transparent,
+                insetPadding: const EdgeInsets.all(16),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 4,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset('assets/noor_icon.jpg', fit: BoxFit.contain),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'إغلاق',
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.asset('assets/noor_icon.jpg', fit: BoxFit.contain),
+            child: Container(
+              width: 172,
+              height: 172,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [BoxShadow(color: green.withValues(alpha: .12), blurRadius: 22, offset: const Offset(0, 8))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset('assets/noor_icon.jpg', fit: BoxFit.contain),
+              ),
             ),
           ),
           const SizedBox(height: 22),
