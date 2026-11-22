@@ -866,10 +866,14 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   }
                   return false;
                 },
-                child: ListView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                  children: children,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _toggleScrolling,
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+                    children: children,
+                  ),
                 ),
               )),
               Material(
@@ -1049,7 +1053,90 @@ class _MushafBookReaderState extends State<MushafBookReader> {
               }
             });
           }
+          final currentAyahs = pages[index]['ayahs'] as List<Map<String, dynamic>>;
+          final firstAyah = currentAyahs.first;
+          final lastAyah = currentAyahs.last;
           return Column(children: [
+            Material(
+              color: Colors.white,
+              elevation: 2,
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  height: 44,
+                  child: Row(children: [
+                    IconButton(
+                      tooltip: 'فهرس السور والآيات',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () async {
+                        var selectedSurah = firstAyah['surah'] as int;
+                        var selectedAyah = firstAyah['number'] as int;
+                        await showDialog<void>(
+                          context: context,
+                          builder: (dialogContext) => StatefulBuilder(
+                            builder: (dialogContext, refreshDialog) => AlertDialog(
+                              title: const Text('فهرس القرآن الكريم'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  DropdownButtonFormField<int>(
+                                    value: selectedSurah,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(labelText: 'السورة'),
+                                    items: List.generate(114, (i) => DropdownMenuItem(
+                                      value: i + 1,
+                                      child: Text(quranSurahNames[i]),
+                                    )),
+                                    onChanged: (value) => refreshDialog(() {
+                                      selectedSurah = value ?? 1;
+                                      selectedAyah = 1;
+                                    }),
+                                  ),
+                                  DropdownButtonFormField<int>(
+                                    value: selectedAyah.clamp(1, quranAyahCounts[selectedSurah - 1]),
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(labelText: 'رقم الآية'),
+                                    items: List.generate(quranAyahCounts[selectedSurah - 1], (i) =>
+                                      DropdownMenuItem(value: i + 1, child: Text('${i + 1}'))),
+                                    onChanged: (value) => refreshDialog(() => selectedAyah = value ?? 1),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  child: const Text('إلغاء'),
+                                ),
+                                FilledButton(
+                                  onPressed: () {
+                                    final target = pages.indexWhere((page) =>
+                                      (page['ayahs'] as List<Map<String, dynamic>>).any((a) =>
+                                        a['surah'] == selectedSurah && a['number'] == selectedAyah));
+                                    if (target >= 0) controller.jumpToPage(target);
+                                    Navigator.pop(dialogContext);
+                                  },
+                                  child: const Text('انتقال'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.list_alt, color: green),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'سورة ${quranSurahNames[(firstAyah['surah'] as int) - 1]} • الآيات ${firstAyah['number']}-${lastAyah['number']} • صفحة ${index + 1}',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: green, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
             Expanded(child: PageView.builder(
               controller: controller,
               itemCount: pages.length,
