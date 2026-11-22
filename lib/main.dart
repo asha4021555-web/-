@@ -1093,7 +1093,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                                     }),
                                   ),
                                   DropdownButtonFormField<int>(
-                                    value: selectedAyah.clamp(1, quranAyahCounts[selectedSurah - 1]),
+                                    value: selectedAyah.clamp(1, quranAyahCounts[selectedSurah - 1]).toInt(),
                                     isExpanded: true,
                                     decoration: const InputDecoration(labelText: 'رقم الآية'),
                                     items: List.generate(quranAyahCounts[selectedSurah - 1], (i) =>
