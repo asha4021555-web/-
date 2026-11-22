@@ -56,19 +56,19 @@ jobs:
               xml = xml[:activity_end] + launch_filter + xml[activity_end:]
 
           receivers = '''
-              <receiver android:name=".NoorAdhkarWidgetProvider" android:exported="true">
+              <receiver android:name=".NoorAdhkarWidgetProvider" android:label="أذكار نور الإسلام" android:exported="true">
                   <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml/noor_adhkar_widget_info" />
               </receiver>
-              <receiver android:name=".NoorTasbeehWidgetProvider" android:exported="true">
+              <receiver android:name=".NoorTasbeehWidgetProvider" android:label="السبحة الإلكترونية" android:exported="true">
                   <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml/noor_tasbeeh_widget_info" />
               </receiver>
-              <receiver android:name=".QuranMajeedWidgetProvider" android:exported="true">
+              <receiver android:name=".QuranMajeedWidgetProvider" android:label="قرآن مجيد" android:exported="true">
                   <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml/quran_majeed_widget_info" />
               </receiver>
-              <receiver android:name=".QuranKareemWidgetProvider" android:exported="true">
+              <receiver android:name=".QuranKareemWidgetProvider" android:label="القرآن الكريم" android:exported="true">
                   <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
                   <meta-data android:name="android.appwidget.provider" android:resource="@xml/quran_kareem_widget_info" />
               </receiver>
