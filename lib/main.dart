@@ -129,6 +129,15 @@ class _HomePageState extends State<HomePage> {
     _widgetSubscription = HomeWidget.widgetClicked.listen(_handleWidgetUri);
   }
 
+  Future<void> _openQuranKareemAtLastPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedSurah = (prefs.getInt('quran_kareem_last_surah') ?? 1).clamp(1, 114);
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ContinuousQuranReader(number: savedSurah, name: quranSurahNames[savedSurah - 1]),
+    ));
+  }
+
   void _handleWidgetUri(Uri? uri) {
     if (uri == null) return;
     final target = uri.host.isNotEmpty ? uri.host : (uri.pathSegments.isEmpty ? '' : uri.pathSegments.first);
@@ -139,7 +148,7 @@ class _HomePageState extends State<HomePage> {
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MushafBookReader()));
           break;
         case 'quran-kareem':
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ContinuousQuranReader(number: 1, name: quranSurahNames[0])));
+          _openQuranKareemAtLastPosition();
           break;
         case 'adhkar':
           setState(() => tab = 4);
@@ -547,12 +556,18 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     _scrollController.addListener(_scheduleSavePosition);
   }
 
+  Future<void> _persistCurrentPosition() async {
+    if (!_scrollController.hasClients) return;
+    final offset = _scrollController.offset;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('noor_reading_last_quran_text_${widget.number}', offset);
+    await prefs.setInt('quran_kareem_last_surah', widget.number);
+  }
+
   void _scheduleSavePosition() {
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 500), () {
-      if (_scrollController.hasClients) {
-        ReadingMarks.saveLast('quran_text_${widget.number}', _scrollController.offset);
-      }
+    _saveTimer = Timer(const Duration(milliseconds: 250), () {
+      _persistCurrentPosition();
     });
   }
 
@@ -640,6 +655,9 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void dispose() {
     ++_scrollRunId;
     _saveTimer?.cancel();
+    if (_scrollController.hasClients) {
+      _persistCurrentPosition();
+    }
     _scrollController.removeListener(_scheduleSavePosition);
     _scrollController.dispose();
     super.dispose();
