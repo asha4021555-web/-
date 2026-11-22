@@ -32,6 +32,162 @@ jobs:
       - name: Generate Android platform files
         run: flutter create --platforms=android --org com.nooralislam .
 
+
+      - name: Add Android home screen widgets
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text()
+          activity_start = xml.find('<activity')
+          activity_end = xml.find('</activity>', activity_start)
+          if activity_start < 0 or activity_end < 0:
+              raise SystemExit('MainActivity block was not found in AndroidManifest.xml')
+          activity = xml[activity_start:activity_end]
+          launch_filter = '''
+                  <intent-filter>
+                      <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                  </intent-filter>
+          '''
+          if 'es.antonborri.home_widget.action.LAUNCH' not in activity:
+              xml = xml[:activity_end] + launch_filter + xml[activity_end:]
+
+          receivers = '''
+              <receiver android:name=".NoorAdhkarWidgetProvider" android:exported="true">
+                  <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml/noor_adhkar_widget_info" />
+              </receiver>
+              <receiver android:name=".NoorTasbeehWidgetProvider" android:exported="true">
+                  <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml/noor_tasbeeh_widget_info" />
+              </receiver>
+              <receiver android:name=".QuranMajeedWidgetProvider" android:exported="true">
+                  <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml/quran_majeed_widget_info" />
+              </receiver>
+              <receiver android:name=".QuranKareemWidgetProvider" android:exported="true">
+                  <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+                  <meta-data android:name="android.appwidget.provider" android:resource="@xml/quran_kareem_widget_info" />
+              </receiver>
+          '''
+          if 'NoorAdhkarWidgetProvider' not in xml:
+              xml = xml.replace('</application>', receivers + '\n</application>', 1)
+          manifest.write_text(xml)
+
+          gradle_files = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
+          gradle = next(p for p in gradle_files if p.exists()).read_text()
+          match = re.search(r'namespace\\s*=\\s*"([^"]+)"', gradle)
+          if not match:
+              match = re.search(r'namespace\\s+"([^"]+)"', gradle)
+          if not match:
+              raise SystemExit('Could not determine Android namespace for widgets')
+          package = match.group(1)
+          source = Path('android/app/src/main/kotlin') / Path(*package.split('.'))
+          source.mkdir(parents=True, exist_ok=True)
+          (source / 'NoorHomeWidgets.kt').write_text(f'''package {package}
+
+          import android.app.PendingIntent
+          import android.appwidget.AppWidgetManager
+          import android.appwidget.AppWidgetProvider
+          import android.content.ComponentName
+          import android.content.Context
+          import android.content.Intent
+          import android.net.Uri
+          import android.view.View
+          import android.widget.RemoteViews
+          import es.antonborri.home_widget.HomeWidgetLaunchIntent
+
+          abstract class NoorBaseWidget : AppWidgetProvider() {{
+              abstract val title: String
+              abstract val subtitle: String
+              abstract val target: String
+
+              override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {{
+                  ids.forEach {{ id ->
+                      val views = RemoteViews(context.packageName, R.layout.noor_home_widget)
+                      views.setTextViewText(R.id.widget_title, title)
+                      views.setTextViewText(R.id.widget_subtitle, subtitle)
+                      views.setViewVisibility(R.id.widget_count, View.GONE)
+                      views.setViewVisibility(R.id.widget_action, View.GONE)
+                      views.setOnClickPendingIntent(R.id.widget_root, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("nooralislam://$target")))
+                      manager.updateAppWidget(id, views)
+                  }}
+              }}
+          }}
+
+          class NoorAdhkarWidgetProvider : NoorBaseWidget() {{
+              override val title = "أذكار نور الإسلام"
+              override val subtitle = "أذكار الصباح والمساء • اضغط للفتح"
+              override val target = "adhkar"
+          }}
+
+          class QuranMajeedWidgetProvider : NoorBaseWidget() {{
+              override val title = "قرآن مجيد"
+              override val subtitle = "افتح المصحف بالصفحات المصوّرة مباشرة"
+              override val target = "quran-majeed"
+          }}
+
+          class QuranKareemWidgetProvider : NoorBaseWidget() {{
+              override val title = "القرآن الكريم"
+              override val subtitle = "افتح القراءة النصية مباشرة من سورة الفاتحة"
+              override val target = "quran-kareem"
+          }}
+
+          class NoorTasbeehWidgetProvider : AppWidgetProvider() {{
+              companion object {{ const val ACTION_INCREMENT = "{package}.TASBEEH_INCREMENT" }}
+
+              override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {{
+                  ids.forEach {{ id -> render(context, manager, id) }}
+              }}
+
+              private fun render(context: Context, manager: AppWidgetManager, id: Int) {{
+                  val count = context.getSharedPreferences("noor_widget_data", Context.MODE_PRIVATE).getInt("tasbeeh_count", 0)
+                  val views = RemoteViews(context.packageName, R.layout.noor_home_widget)
+                  views.setTextViewText(R.id.widget_title, "السبحة الإلكترونية")
+                  views.setTextViewText(R.id.widget_subtitle, "عداد التسبيح من الشاشة الرئيسية")
+                  views.setTextViewText(R.id.widget_count, count.toString())
+                  views.setViewVisibility(R.id.widget_count, View.VISIBLE)
+                  views.setViewVisibility(R.id.widget_action, View.VISIBLE)
+                  views.setTextViewText(R.id.widget_action, "سبّح +١")
+                  val increment = Intent(context, NoorTasbeehWidgetProvider::class.java).setAction(ACTION_INCREMENT)
+                  val pending = PendingIntent.getBroadcast(context, id, increment, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  views.setOnClickPendingIntent(R.id.widget_action, pending)
+                  views.setOnClickPendingIntent(R.id.widget_root, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("nooralislam://tasbeeh")))
+                  manager.updateAppWidget(id, views)
+              }}
+
+              override fun onReceive(context: Context, intent: Intent) {{
+                  if (intent.action == ACTION_INCREMENT) {{
+                      val prefs = context.getSharedPreferences("noor_widget_data", Context.MODE_PRIVATE)
+                      prefs.edit().putInt("tasbeeh_count", prefs.getInt("tasbeeh_count", 0) + 1).apply()
+                      val manager = AppWidgetManager.getInstance(context)
+                      val ids = manager.getAppWidgetIds(ComponentName(context, NoorTasbeehWidgetProvider::class.java))
+                      onUpdate(context, manager, ids)
+                  }} else super.onReceive(context, intent)
+              }}
+          }}
+          ''')
+
+          res = Path('android/app/src/main/res')
+          (res / 'layout').mkdir(parents=True, exist_ok=True)
+          (res / 'xml').mkdir(parents=True, exist_ok=True)
+          (res / 'drawable').mkdir(parents=True, exist_ok=True)
+          (res / 'drawable/noor_widget_background.xml').write_text('''<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#FFF9F0"/><corners android:radius="18dp"/><stroke android:width="1dp" android:color="#D8C39A"/></shape>''')
+          (res / 'layout/noor_home_widget.xml').write_text('''<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="12dp" android:background="@drawable/noor_widget_background"><TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="نور الإسلام" android:textColor="#493326" android:textStyle="bold" android:textSize="17sp"/><TextView android:id="@+id/widget_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="5dp" android:text="اضغط للفتح" android:textColor="#665548" android:textSize="12sp"/><TextView android:id="@+id/widget_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="4dp" android:text="0" android:textColor="#493326" android:textStyle="bold" android:textSize="22sp" android:visibility="gone"/><Button android:id="@+id/widget_action" android:layout_width="wrap_content" android:layout_height="38dp" android:layout_marginTop="4dp" android:text="سبّح +١" android:visibility="gone"/></LinearLayout>''')
+          configs = {
+              'noor_adhkar_widget_info': ('أذكار نور الإسلام', '2', '1'),
+              'noor_tasbeeh_widget_info': ('السبحة الإلكترونية', '2', '1'),
+              'quran_majeed_widget_info': ('قرآن مجيد', '2', '1'),
+              'quran_kareem_widget_info': ('القرآن الكريم', '2', '1'),
+          }
+          for name, (label, width, height) in configs.items():
+              (res / f'xml/{name}.xml').write_text(f'''<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" android:minWidth="{width}dp" android:minHeight="{height}dp" android:initialLayout="@layout/noor_home_widget" android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:description="{label}" android:updatePeriodMillis="0" />''')
+          print('Created four Android home-screen widgets: adhkar, tasbeeh counter, Quran Majeed, Quran Kareem.')
+          PY
+
       - name: Enable Java API desugaring for scheduled notifications
         run: |
           python3 - <<'PY'
