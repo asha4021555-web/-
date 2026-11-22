@@ -1,4 +1,4 @@
-name: Build Noor Al-Islam APK and AAB
+name: Build Noor Al-Islam APK
 
 on:
   workflow_dispatch:
@@ -374,14 +374,9 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Build release Android App Bundle
-        run: flutter build appbundle --release
-
       - name: Upload Android release files
         uses: actions/upload-artifact@v4
         with:
-          name: noor-al-islam-android-release
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+          name: noor-al-islam-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
