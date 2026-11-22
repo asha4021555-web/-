@@ -105,7 +105,12 @@ class _HomePageState extends State<HomePage> {
       const QuranPage(),
       const DhikrPage(after:false),
     ];
-    return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
+    return Directionality(textDirection:TextDirection.rtl,child:PopScope<Object?>(
+      canPop: tab == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && tab != 0) setState(() => tab = 0);
+      },
+      child: Scaffold(
       appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>_open(const GlobalSearchPage(),'بحث شامل'))]),
       body:IndexedStack(index:tab,children:pages),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),destinations:const[
@@ -115,6 +120,7 @@ class _HomePageState extends State<HomePage> {
         NavigationDestination(icon:Icon(Icons.menu_book_outlined),selectedIcon:Icon(Icons.menu_book),label:'القرآن'),
         NavigationDestination(icon:Icon(Icons.wb_twilight_outlined),selectedIcon:Icon(Icons.wb_twilight),label:'الأذكار'),
       ]),
+      ),
     ));
   }
 }
