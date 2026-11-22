@@ -292,7 +292,11 @@ class _PrayerPageState extends State<PrayerPage> {
       alerts=prefs.getBool('prayer_alerts')??false;
       iqama=prefs.getInt('iqama_delay')??10;
       final savedAudio=prefs.getString('adhan_audio_path');
-      audioPath=savedAudio!=null && File(savedAudio).existsSync() ? savedAudio : null;
+      final isOldHaramAdhan = savedAudio != null && savedAudio.endsWith('adhan_ali_ibn_ahmad_mala.mp3');
+      if (isOldHaramAdhan) {
+        prefs.remove('adhan_audio_path');
+      }
+      audioPath=savedAudio!=null && !isOldHaramAdhan && File(savedAudio).existsSync() ? savedAudio : null;
       final savedIqamaAudio=prefs.getString('iqama_audio_path');
       iqamaAudioPath=savedIqamaAudio!=null && File(savedIqamaAudio).existsSync() ? savedIqamaAudio : null;
     });
@@ -528,8 +532,7 @@ class _PrayerPageState extends State<PrayerPage> {
     String? lastError;
     try {
       final urls = [
-        'https://cdn.jsdelivr.net/gh/Kiwifu/adhan-mp3@main/Ali_Ibn_Ahmad_Mala_HQ.mp3',
-        'https://raw.githubusercontent.com/Kiwifu/adhan-mp3/main/Ali_Ibn_Ahmad_Mala_HQ.mp3',
+        'https://ia600702.us.archive.org/10/items/athan-nasTv/athan-nasTv.mp3',
       ];
       List<int>? audioBytes;
       for (final address in urls) {
@@ -557,7 +560,7 @@ class _PrayerPageState extends State<PrayerPage> {
       }
 
       final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/adhan_ali_ibn_ahmad_mala.mp3');
+      final file = File('${dir.path}/adhan_abdulmajeed_alsarihi.mp3');
       await file.writeAsBytes(audioBytes, flush: true);
       if (!await file.exists() || await file.length() != audioBytes.length) {
         throw Exception('لم يكتمل حفظ ملف الأذان على الهاتف');
@@ -568,9 +571,9 @@ class _PrayerPageState extends State<PrayerPage> {
       if (!mounted) return;
       setState(() => audioPath = file.path);
       if (alerts) await _refresh();
-      _msg('تم حفظ أذان الحرم المكي. سيعمل تلقائيًا عند دخول وقت الصلاة مع تفعيل التنبيهات.');
+      _msg('تم حفظ أذان الشيخ عبد المجيد السريحي. سيعمل تلقائيًا عند دخول وقت الصلاة مع تفعيل التنبيهات.');
     } catch (e) {
-      _msg('لم تتم إضافة أذان الحرم: ${e.toString()}');
+      _msg('لم تتم إضافة أذان عبد المجيد السريحي: ${e.toString()}');
     } finally {
       if (mounted) setState(() => downloadingHaram = false);
     }
@@ -673,7 +676,7 @@ class _PrayerPageState extends State<PrayerPage> {
           icon: downloadingHaram
               ? const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2))
               : const Icon(Icons.mosque),
-          label: Text(downloadingHaram ? 'جارٍ تنزيل أذان الحرم...' : 'تنزيل أذان الحرم المكي - علي بن أحمد ملا'),
+          label: Text(downloadingHaram ? 'جارٍ تنزيل أذان عبد المجيد السريحي...' : 'تنزيل أذان عبد المجيد السريحي'),
         ),
         Wrap(spacing:8,runSpacing:8,children:[
           OutlinedButton.icon(onPressed:_chooseAdhan,icon:const Icon(Icons.audio_file),label:const Text('اختيار ملف من الهاتف')),
