@@ -475,6 +475,8 @@ class ContinuousQuranReader extends StatefulWidget {
 class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
   bool _scrolling = false;
+  bool _autoRequested = false;
+  bool _manualInteraction = false;
   bool _restoreDone = false;
   Timer? _saveTimer;
   double _speed = 140;
@@ -527,13 +529,18 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     if (_scrolling || !_scrollController.hasClients) return;
     final position = _scrollController.position;
     final remaining = position.maxScrollExtent - position.pixels;
-    if (remaining <= 1 || _speed <= 0) return;
+    if (remaining <= 1 || _speed <= 0) {
+      _autoRequested = false;
+      if (mounted) setState(() {});
+      return;
+    }
 
+    _autoRequested = true;
     final runId = ++_scrollRunId;
     setState(() => _scrolling = true);
 
-    // Frame-synchronized linear scrolling avoids the visible jumps from
-    // repeatedly calling jumpTo, while preserving the selected speed.
+    // Keep a constant linear speed. If the user drags, Flutter temporarily
+    // takes control; the auto-scroll is resumed from the new offset on release.
     final durationMs = (remaining / _speed * 1000).round().clamp(1, 2147483647);
     try {
       await _scrollController.animateTo(
@@ -541,6 +548,11 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
         duration: Duration(milliseconds: durationMs),
         curve: Curves.linear,
       );
+      if (mounted && runId == _scrollRunId &&
+          _scrollController.hasClients &&
+          _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 1) {
+        _autoRequested = false;
+      }
     } finally {
       if (mounted && runId == _scrollRunId) {
         setState(() => _scrolling = false);
@@ -548,12 +560,23 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     }
   }
 
-  void _stopScrolling({bool cancelMotion = true}) {
+  void _resumeAfterManualDrag() {
+    if (!_autoRequested) return;
+    Future<void>.delayed(const Duration(milliseconds: 80), () {
+      if (mounted && _autoRequested && !_manualInteraction && !_scrolling) {
+        _startScrolling();
+      }
+    });
+  }
+
+  void _stopScrolling() {
     ++_scrollRunId;
-    if (cancelMotion && _scrollController.hasClients) {
+    _autoRequested = false;
+    _manualInteraction = false;
+    if (_scrollController.hasClients) {
       _scrollController.jumpTo(_scrollController.offset);
     }
-    if (mounted && _scrolling) setState(() => _scrolling = false);
+    if (mounted) setState(() => _scrolling = false);
   }
 
   @override
@@ -623,12 +646,14 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
                 onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
               ),
-              Expanded(child: NotificationListener<UserScrollNotification>(
+              Expanded(child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
-                  if (notification.direction != ScrollDirection.idle && _scrolling) {
-                    // The user's drag takes control; avoid jumpTo here so the
-                    // manual gesture is never interrupted by our own code.
-                    _stopScrolling(cancelMotion: false);
+                  if (notification is ScrollStartNotification &&
+                      notification.dragDetails != null) {
+                    _manualInteraction = true;
+                  } else if (notification is ScrollEndNotification && _manualInteraction) {
+                    _manualInteraction = false;
+                    _resumeAfterManualDrag();
                   }
                   return false;
                 },
@@ -686,9 +711,9 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                     ]),
                     Row(children: [
                       Expanded(child: FilledButton.icon(
-                        onPressed: _scrolling ? _stopScrolling : _startScrolling,
-                        icon: Icon(_scrolling ? Icons.pause : Icons.play_arrow),
-                        label: Text(_scrolling ? 'إيقاف مؤقت' : 'ابدأ التمرير التلقائي'),
+                        onPressed: _autoRequested ? _stopScrolling : _startScrolling,
+                        icon: Icon(_autoRequested ? Icons.pause : Icons.play_arrow),
+                        label: Text(_autoRequested ? 'إيقاف التمرير' : 'ابدأ التمرير التلقائي'),
                         style: FilledButton.styleFrom(backgroundColor: green),
                       )),
                       const SizedBox(width: 8),
