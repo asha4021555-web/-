@@ -259,6 +259,7 @@ class SectionPage extends StatelessWidget{final int index;const SectionPage({sup
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
+  static const surahAyahCounts = quranAyahCounts;
 
   void _openTextReader(BuildContext context, int surah, int ayah) {
     Navigator.push(context, MaterialPageRoute(
