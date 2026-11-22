@@ -589,6 +589,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   double _speed = 140;
   double _fontSize = 24;
   late Future<_ContinuousReaderData> _data;
+  late Future<void> _preferencesReady;
 
   static const _lastSurahKey = 'quran_kareem_last_surah';
   static const _fontSizeKey = 'quran_kareem_font_size';
@@ -601,7 +602,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     super.initState();
     _data = _loadData();
     _scrollController.addListener(_scheduleSavePosition);
-    unawaited(_loadReaderPreferences());
+    _preferencesReady = _loadReaderPreferences();
   }
 
   Future<void> _loadReaderPreferences() async {
@@ -641,6 +642,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   Future<void> _restorePosition() async {
     if (_restoreDone) return;
     _restoreDone = true;
+    // Apply the saved font size before calculating the scroll extent.
+    await _preferencesReady;
     final prefs = await SharedPreferences.getInstance();
     final saved = widget.restoreLastPosition && widget.initialAyah == 1
         ? (prefs.getDouble(_positionKey) ?? 0)
