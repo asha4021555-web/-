@@ -97,11 +97,21 @@ class _ReadingMarksControlsState extends State<ReadingMarksControls> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-    child: Row(children: [
-      Expanded(child: OutlinedButton.icon(onPressed: _add, icon: const Icon(Icons.bookmark_add_outlined), label: const Text('حفظ علامة'))),
-      const SizedBox(width: 8),
-      Expanded(child: OutlinedButton.icon(onPressed: _show, icon: const Icon(Icons.bookmarks_outlined), label: const Text('علاماتي المحفوظة'))),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+    child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+      TextButton.icon(
+        onPressed: _add,
+        icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+        label: const Text('حفظ علامة'),
+        style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
+      ),
+      const SizedBox(width: 4),
+      TextButton.icon(
+        onPressed: _show,
+        icon: const Icon(Icons.bookmarks_outlined, size: 18),
+        label: const Text('علاماتي'),
+        style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
+      ),
     ]),
   );
 }
