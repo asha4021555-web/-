@@ -79,9 +79,9 @@ jobs:
 
           gradle_files = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
           gradle = next(p for p in gradle_files if p.exists()).read_text()
-          match = re.search(r'namespace\\s*=\\s*"([^"]+)"', gradle)
+          match = re.search(r'namespace\s*=\s*"([^"]+)"', gradle)
           if not match:
-              match = re.search(r'namespace\\s+"([^"]+)"', gradle)
+              match = re.search(r'namespace\s+"([^"]+)"', gradle)
           if not match:
               raise SystemExit('Could not determine Android namespace for widgets')
           package = match.group(1)
@@ -184,7 +184,7 @@ jobs:
               'quran_kareem_widget_info': ('القرآن الكريم', '2', '1'),
           }
           for name, (label, width, height) in configs.items():
-              (res / f'xml/{name}.xml').write_text(f'''<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" android:minWidth="{width}dp" android:minHeight="{height}dp" android:initialLayout="@layout/noor_home_widget" android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:description="{label}" android:updatePeriodMillis="0" />''')
+              (res / f'xml/{name}.xml').write_text(f'''<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" android:minWidth="110dp" android:minHeight="70dp" android:initialLayout="@layout/noor_home_widget" android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:updatePeriodMillis="0" />''')
           print('Created four Android home-screen widgets: adhkar, tasbeeh counter, Quran Majeed, Quran Kareem.')
           PY
 
