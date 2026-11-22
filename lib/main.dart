@@ -7,6 +7,7 @@ import 'package:hijri_date/hijri.dart';
 import 'prayer_page.dart';
 import 'quran_data.dart';
 import 'quran_navigation.dart';
+import 'reading_marks.dart';
 import 'tafsir_page.dart';
 import 'dreams_page.dart';
 import 'media_pages.dart';
@@ -474,6 +475,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   bool _scrolling = false;
+  bool _restoreDone = false;
+  Timer? _saveTimer;
   double _speed = 140;
   double _fontSize = 24;
   late Future<_ContinuousReaderData> _data;
@@ -482,6 +485,27 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void initState() {
     super.initState();
     _data = _loadData();
+    _scrollController.addListener(_scheduleSavePosition);
+  }
+
+  void _scheduleSavePosition() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_scrollController.hasClients) {
+        ReadingMarks.saveLast('quran_text_${widget.number}', _scrollController.offset);
+      }
+    });
+  }
+
+  Future<void> _restorePosition() async {
+    if (_restoreDone) return;
+    _restoreDone = true;
+    final saved = await ReadingMarks.loadLast('quran_text_${widget.number}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scrollController.hasClients && widget.initialAyah == 1 && saved > 0) {
+        _scrollController.jumpTo(saved.clamp(0.0, _scrollController.position.maxScrollExtent));
+      }
+    });
   }
 
   Future<_ContinuousReaderData> _loadData() async {
@@ -522,6 +546,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   @override
   void dispose() {
     _scrollTimer?.cancel();
+    _saveTimer?.cancel();
+    _scrollController.removeListener(_scheduleSavePosition);
     _scrollController.dispose();
     super.dispose();
   }
@@ -546,6 +572,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               return Center(child: Text('تعذر تحميل القراءة المتتابعة: ${snapshot.error}'));
             }
             final data = snapshot.data!;
+            _restorePosition();
             final children = <Widget>[
               Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -577,6 +604,12 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 ),
             ];
             return Column(children: [
+              ReadingMarksControls(
+                section: 'quran_text_${widget.number}',
+                label: 'سورة ${widget.name} - موضع القراءة الحالي',
+                position: _scrollController.hasClients ? _scrollController.offset : 0,
+                onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent)); },
+              ),
               Expanded(child: ListView(
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
@@ -718,6 +751,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   final PageController controller = PageController();
   int index = 0;
   bool _initialJumpDone = false;
+  bool _restorePageDone = false;
 
   @override
   void initState() {
@@ -792,6 +826,15 @@ class _MushafBookReaderState extends State<MushafBookReader> {
               index = target;
               WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted && controller.hasClients) controller.jumpToPage(target); });
             }
+            ReadingMarks.loadLast('mushaf_pages').then((saved) {
+              if (!mounted || _restorePageDone) return;
+              _restorePageDone = true;
+              if (widget.initialSurah == 1 && widget.initialAyah == 1 && saved > 0) {
+                final savedPage = saved.round().clamp(0, pages.length - 1);
+                index = savedPage;
+                WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted && controller.hasClients) controller.jumpToPage(savedPage); });
+              }
+            });
           }
           return Column(children: [
             QuranLocationPicker(
@@ -805,7 +848,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
             Expanded(child: PageView.builder(
               controller: controller,
               itemCount: pages.length,
-              onPageChanged: (value) => setState(() => index = value),
+              onPageChanged: (value) { setState(() => index = value); ReadingMarks.saveLast('mushaf_pages', value.toDouble()); },
               itemBuilder: (context, pageIndex) {
                 final pageNumber = pageIndex + 1;
                 return Container(
@@ -832,6 +875,12 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                 );
               },
             )),
+            ReadingMarksControls(
+              section: 'mushaf_pages',
+              label: 'قرآن مجيد - صفحة ${index + 1}',
+              position: index.toDouble(),
+              onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603)),
+            ),
             SafeArea(top: false, child: Row(children: [
               IconButton(onPressed: index == 0 ? null : () => controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_right)),
               Expanded(child: Slider(value: index.toDouble(), min: 0, max: 603, divisions: 603, onChanged: (v) => controller.jumpToPage(v.round()), activeColor: green)),
