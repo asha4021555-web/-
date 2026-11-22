@@ -614,18 +614,20 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
       _speed = savedSpeed.clamp(45.0, 300.0);
     });
     await prefs.setInt(_lastSurahKey, widget.number);
-    if (!widget.restoreLastPosition || widget.initialAyah != 1) {
-      await prefs.setDouble(_positionKey, 0);
-    }
   }
 
   Future<void> _persistCurrentPosition() async {
+    // Capture the offset before awaiting preferences: dispose() may release
+    // the ScrollController while this asynchronous write is in progress.
+    final offset = _scrollController.hasClients ? _scrollController.offset : null;
+    final fontSize = _fontSize;
+    final speed = _speed;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_lastSurahKey, widget.number);
-    await prefs.setDouble(_fontSizeKey, _fontSize);
-    await prefs.setDouble(_speedKey, _speed);
-    if (_scrollController.hasClients) {
-      await prefs.setDouble(_positionKey, _scrollController.offset);
+    await prefs.setDouble(_fontSizeKey, fontSize);
+    await prefs.setDouble(_speedKey, speed);
+    if (offset != null) {
+      await prefs.setDouble(_positionKey, offset);
     }
   }
 
