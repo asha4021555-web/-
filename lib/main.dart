@@ -213,11 +213,14 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height:12),
         const HijriDateFooter(),
       ]),
-      ListView(padding:const EdgeInsets.all(16),children:[
-        const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
-        const SizedBox(height:10),
-        ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
-        const HijriOffsetSetting(),
+      Stack(children:[
+        Positioned.fill(child:IgnorePointer(child:Center(child:Opacity(opacity:0.055,child:Image.asset('assets/noor_icon.jpg',fit:BoxFit.contain,width:MediaQuery.of(context).size.width*0.78))))),
+        ListView(padding:const EdgeInsets.all(16),children:[
+          const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
+          const SizedBox(height:10),
+          ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
+          const HijriOffsetSetting(),
+        ]),
       ]),
 
       const QiblaPage(),
@@ -600,6 +603,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _data = _loadData();
     _scrollController.addListener(_scheduleSavePosition);
     _preferencesReady = _loadReaderPreferences();
@@ -740,7 +744,59 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     unawaited(_persistCurrentPosition());
     _scrollController.removeListener(_scheduleSavePosition);
     _scrollController.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  Future<void> _showFontSettings() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => StatefulBuilder(builder: (context, refresh) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('حجم خط القرآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
+            Row(children: [
+              const Icon(Icons.text_decrease, color: green),
+              Expanded(child: Slider(value: _fontSize, min: 18, max: 44, divisions: 13, label: _fontSize.round().toString(), activeColor: green, onChanged: (v) {
+                setState(() => _fontSize = v);
+                refresh(() {});
+                unawaited(_saveReaderSettings());
+              })),
+              const Icon(Icons.text_increase, color: green),
+              Text(_fontSize.round().toString()),
+            ]),
+          ]),
+        ),
+      )),
+    );
+  }
+
+  Future<void> _showSpeedSettings() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => StatefulBuilder(builder: (context, refresh) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('سرعة التمرير التلقائي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
+            Slider(value: _speed.clamp(20.0, 400.0), min: 20, max: 400, divisions: 38, label: _speed.round().toString(), activeColor: green, onChanged: (v) {
+              setState(() => _speed = v);
+              refresh(() {});
+              unawaited(_saveReaderSettings());
+            }),
+            Wrap(spacing: 8, children: [
+              for (final preset in const [('بطيء', 45.0), ('متوسط', 140.0), ('سريع', 300.0)])
+                ChoiceChip(label: Text(preset.$1), selected: _speed == preset.$2, onSelected: (_) {
+                  setState(() => _speed = preset.$2);
+                  refresh(() {});
+                  unawaited(_saveReaderSettings());
+                }),
+            ]),
+          ]),
+        ),
+      )),
+    );
   }
 
   @override
@@ -748,11 +804,6 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text('قراءة متتابعة - ${widget.name}'),
-          backgroundColor: green,
-          foregroundColor: Colors.white,
-        ),
         body: FutureBuilder<_ContinuousReaderData>(
           future: _data,
           builder: (context, snapshot) {
@@ -795,12 +846,6 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 ),
             ];
             return Column(children: [
-              ReadingMarksControls(
-                section: 'quran_text_${widget.number}',
-                label: 'سورة ${widget.name} - موضع القراءة الحالي',
-                getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
-                onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
-              ),
               Expanded(child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
                   if (notification is ScrollStartNotification &&
@@ -819,74 +864,23 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 ),
               )),
               Material(
-                elevation: 8,
+                elevation: 10,
                 color: Colors.white,
-                child: SafeArea(top: false, child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Row(children: [
-                      IconButton(
-                        tooltip: 'تصغير حجم الخط',
-                        onPressed: _fontSize > 18 ? () => setState(() => _fontSize = (_fontSize - 2).clamp(18, 44)) : null,
-                        icon: const Icon(Icons.text_decrease, color: green),
-                      ),
-                      Expanded(child: Slider(
-                        value: _fontSize,
-                        min: 18,
-                        max: 44,
-                        divisions: 13,
-                        label: _fontSize.round().toString(),
-                        activeColor: green,
-                        onChanged: (value) {
-                          setState(() => _fontSize = value);
-                          unawaited(_saveReaderSettings());
-                        },
-                      )),
-                      IconButton(
-                        tooltip: 'تكبير حجم الخط',
-                        onPressed: _fontSize < 44 ? () => setState(() => _fontSize = (_fontSize + 2).clamp(18, 44)) : null,
-                        icon: const Icon(Icons.text_increase, color: green),
-                      ),
-                      Text(_fontSize.round().toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ]),
-                    Wrap(spacing: 6, children: [
-                      for (final preset in const [('بطيء', 45.0), ('متوسط', 140.0), ('سريع', 300.0)])
-                        ChoiceChip(
-                          label: Text(preset.$1),
-                          selected: _speed == preset.$2,
-                          onSelected: (_) {
-                            setState(() => _speed = preset.$2);
-                            unawaited(_saveReaderSettings());
-                          },
-                        ),
-                    ]),
-                    Row(children: [
-                      const Text('سرعة التمرير', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Expanded(child: Slider(
-                        value: _speed, min: 20, max: 400, divisions: 38,
-                        label: '${_speed.round()}',
-                        activeColor: green,
-                        onChanged: (value) => setState(() => _speed = value),
-                      )),
-                      Text('${_speed.round()}'),
-                    ]),
-                    Row(children: [
-                      Expanded(child: FilledButton.icon(
-                        onPressed: _autoRequested ? _stopScrolling : _startScrolling,
-                        icon: Icon(_autoRequested ? Icons.pause : Icons.play_arrow),
-                        label: Text(_autoRequested ? 'إيقاف التمرير' : 'ابدأ التمرير التلقائي'),
-                        style: FilledButton.styleFrom(backgroundColor: green),
-                      )),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'العودة إلى بداية السورة',
-                        onPressed: () {
-                          _stopScrolling();
-                          if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
-                        },
-                        icon: const Icon(Icons.vertical_align_top, color: green),
-                      ),
-                    ]),
+                child: SafeArea(top: false, child: SizedBox(
+                  height: 50,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                    IconButton(tooltip: 'إغلاق القراءة', visualDensity: VisualDensity.compact, onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: green, size: 21)),
+                    ReadingMarksControls(
+                      compact: true,
+                      section: 'quran_text_${widget.number}',
+                      label: 'سورة ${widget.name} - موضع القراءة الحالي',
+                      getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
+                      onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
+                    ),
+                    IconButton(tooltip: 'حجم الخط', visualDensity: VisualDensity.compact, onPressed: _showFontSettings, icon: const Icon(Icons.format_size, color: green, size: 22)),
+                    IconButton(tooltip: 'سرعة القراءة', visualDensity: VisualDensity.compact, onPressed: _showSpeedSettings, icon: const Icon(Icons.speed, color: green, size: 22)),
+                    IconButton(tooltip: _autoRequested ? 'إيقاف التمرير' : 'بدء التمرير', visualDensity: VisualDensity.compact, onPressed: _autoRequested ? _stopScrolling : _startScrolling, icon: Icon(_autoRequested ? Icons.pause_circle_filled : Icons.play_circle_fill, color: green, size: 24)),
+                    IconButton(tooltip: 'بداية السورة', visualDensity: VisualDensity.compact, onPressed: () { _stopScrolling(); if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut); }, icon: const Icon(Icons.vertical_align_top, color: green, size: 21)),
                   ]),
                 )),
               ),
@@ -966,6 +960,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   void initState() {
     super.initState();
     futurePages = _loadPages();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -1012,6 +1007,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   @override
   void dispose() {
     controller.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
   }
@@ -1020,7 +1016,6 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   Widget build(BuildContext context) => Directionality(
     textDirection: TextDirection.rtl,
     child: Scaffold(
-      appBar: AppBar(title: const Text('قرآن مجيد'), backgroundColor: green, foregroundColor: Colors.white),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: futurePages,
         builder: (context, snapshot) {
@@ -1046,14 +1041,6 @@ class _MushafBookReaderState extends State<MushafBookReader> {
             });
           }
           return Column(children: [
-            QuranLocationPicker(
-              title: 'فهرس قرآن مجيد',
-              onOpen: (surah, ayah) {
-                final target = pages.indexWhere((page) => (page['ayahs'] as List).any((a) => a['surah'] == surah && a['number'] == ayah));
-                if (target >= 0) controller.jumpToPage(target);
-              },
-            ),
-            Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Text('صفحة ${index + 1} من 604 • اسحب يمينًا ويسارًا للتقليب', style: const TextStyle(color: green, fontWeight: FontWeight.bold))),
             Expanded(child: PageView.builder(
               controller: controller,
               itemCount: pages.length,
@@ -1084,17 +1071,30 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                 );
               },
             )),
-            ReadingMarksControls(
-              section: 'mushaf_pages',
-              label: 'قرآن مجيد - صفحة ${index + 1}',
-              getPosition: () => index.toDouble(),
-              onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603).toInt()),
+            Material(
+              elevation: 10,
+              color: Colors.white,
+              child: SafeArea(top: false, child: SizedBox(height: 50, child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(tooltip: 'إغلاق المصحف', visualDensity: VisualDensity.compact, onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: green, size: 21)),
+                  IconButton(tooltip: 'الصفحة السابقة', visualDensity: VisualDensity.compact, onPressed: index == 0 ? null : () => controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_right, color: green, size: 23)),
+                  ReadingMarksControls(
+                    compact: true,
+                    section: 'mushaf_pages',
+                    label: 'قرآن مجيد - صفحة ${index + 1}',
+                    getPosition: () => index.toDouble(),
+                    onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603).toInt()),
+                  ),
+                  IconButton(tooltip: 'الصفحة التالية', visualDensity: VisualDensity.compact, onPressed: index >= 603 ? null : () => controller.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_left, color: green, size: 23)),
+                  IconButton(tooltip: 'رقم الصفحة', visualDensity: VisualDensity.compact, onPressed: () => showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+                    title: const Text('رقم الصفحة'),
+                    content: Text('أنت في الصفحة ${index + 1} من 604'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق'))],
+                  )), icon: const Icon(Icons.book_outlined, color: green, size: 21)),
+                ],
+              ))),
             ),
-            SafeArea(top: false, child: Row(children: [
-              IconButton(onPressed: index == 0 ? null : () => controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_right)),
-              Expanded(child: Slider(value: index.toDouble(), min: 0, max: 603, divisions: 603, onChanged: (v) => controller.jumpToPage(v.round()), activeColor: green)),
-              IconButton(onPressed: index >= 603 ? null : () => controller.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_left)),
-            ])),
           ]);
         },
       ),
