@@ -148,6 +148,9 @@ class _HomePageState extends State<HomePage> {
           setState(() => tab = 0);
           _open(SectionPage(index: 7), titles[7]);
           break;
+        case 'prayer-times':
+          _open(const PrayerPage(), 'مواقيت الصلاة');
+          break;
       }
     });
   }
