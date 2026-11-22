@@ -46,7 +46,8 @@ class ReadingMarksControls extends StatefulWidget {
   final String label;
   final double Function() getPosition;
   final ValueChanged<double> onJump;
-  const ReadingMarksControls({super.key, required this.section, required this.label, required this.getPosition, required this.onJump});
+  final bool compact;
+  const ReadingMarksControls({super.key, required this.section, required this.label, required this.getPosition, required this.onJump, this.compact = false});
 
   @override
   State<ReadingMarksControls> createState() => _ReadingMarksControlsState();
@@ -97,21 +98,39 @@ class _ReadingMarksControlsState extends State<ReadingMarksControls> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-    child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-      TextButton.icon(
-        onPressed: _add,
-        icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-        label: const Text('حفظ علامة'),
-        style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
-      ),
-      const SizedBox(width: 4),
-      TextButton.icon(
-        onPressed: _show,
-        icon: const Icon(Icons.bookmarks_outlined, size: 18),
-        label: const Text('علاماتي'),
-        style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
-      ),
+    padding: EdgeInsets.symmetric(horizontal: widget.compact ? 0 : 10, vertical: 0),
+    child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.end, children: [
+      if (widget.compact)
+        IconButton(
+          tooltip: 'حفظ علامة القراءة',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 42, height: 42),
+          onPressed: _add,
+          icon: const Icon(Icons.bookmark_add_outlined, color: Color(0xFF493326), size: 21),
+        )
+      else
+        TextButton.icon(
+          onPressed: _add,
+          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+          label: const Text('حفظ علامة'),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
+        ),
+      if (!widget.compact) const SizedBox(width: 4),
+      if (widget.compact)
+        IconButton(
+          tooltip: 'علاماتي المحفوظة',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 42, height: 42),
+          onPressed: _show,
+          icon: const Icon(Icons.bookmarks_outlined, color: Color(0xFF493326), size: 21),
+        )
+      else
+        TextButton.icon(
+          onPressed: _show,
+          icon: const Icon(Icons.bookmarks_outlined, size: 18),
+          label: const Text('علاماتي'),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 34), padding: const EdgeInsets.symmetric(horizontal: 8)),
+        ),
     ]),
   );
 }
