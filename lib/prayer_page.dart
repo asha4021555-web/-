@@ -167,7 +167,7 @@ Future<void> _syncPrayerTimesWidget(Coordinates coordinates, String methodKey) a
   } catch (_) { }
 }
 
-Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath) async {
+Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath, double adhanVolume) async {
   await _initAlerts();
   await _notifier.cancelAll();
   const details = NotificationDetails(android: AndroidNotificationDetails(
@@ -205,6 +205,7 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
   await _adhanChannel.invokeMethod('scheduleAdhan', {
     'times': adhanTimes,
     'audioPath': selectedAudioPath,
+    'volume': adhanVolume,
     'iqamaTimes': iqamaTimes,
     'iqamaAudioPath': selectedIqamaAudioPath,
   }).catchError((_) {});
@@ -299,6 +300,7 @@ class _PrayerPageState extends State<PrayerPage> {
   int iqama=10;
   String? audioPath;
   String? iqamaAudioPath;
+  double adhanVolume=1.0;
   bool downloadingHaram=false;
   final AudioPlayer audioPlayer=AudioPlayer();
 
@@ -313,6 +315,7 @@ class _PrayerPageState extends State<PrayerPage> {
       methodKey=prefs.getString('calculation_method')??'egyptian';
       alerts=prefs.getBool('prayer_alerts')??false;
       iqama=prefs.getInt('iqama_delay')??10;
+      adhanVolume=(prefs.getDouble('adhan_volume')??1.0).clamp(0.0,1.0).toDouble();
       final savedAudio=prefs.getString('adhan_audio_path');
       final isOldHaramAdhan = savedAudio != null && savedAudio.endsWith('adhan_ali_ibn_ahmad_mala.mp3');
       if (isOldHaramAdhan) {
@@ -496,7 +499,7 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _refresh() async {
     final c=coordinates;
     if(c==null)return;
-    await _scheduleAlerts(c,iqama,methodKey,audioPath,iqamaAudioPath);
+    await _scheduleAlerts(c,iqama,methodKey,audioPath,iqamaAudioPath,adhanVolume);
   }
   Future<void> _toggle(bool value) async {
     if(value&&coordinates==null){await _locate();if(coordinates==null)return;}
@@ -508,6 +511,20 @@ class _PrayerPageState extends State<PrayerPage> {
       try{await _refresh();_msg('تم ضبط التنبيهات للأيام السبعة القادمة.');}
       catch(e){setState(()=>alerts=false);_msg('تعذر ضبط التنبيهات: '+e.toString());}
     }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});_msg('تم إيقاف التنبيهات.');}
+  }
+  Future<void> _setAdhanVolume(double value) async {
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setDouble('adhan_volume',value.clamp(0.0,1.0).toDouble());
+    if(alerts) await _refresh();
+  }
+  Future<void> _stopAdhanNow() async {
+    try {
+      await audioPlayer.stop();
+      await _adhanChannel.invokeMethod('stopPlayback');
+      _msg('تم إرسال أمر إيقاف الأذان.');
+    } catch(e) {
+      _msg('تعذر إيقاف الأذان: '+e.toString());
+    }
   }
   Future<void> _setIqama(int? v) async {
     if(v==null)return;
@@ -692,7 +709,11 @@ class _PrayerPageState extends State<PrayerPage> {
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت الأذان',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
-        Text(audioPath==null?'صوت إشعار الهاتف الافتراضي': 'تم اختيار ملف صوتي من الهاتف'),
+        Text(audioPath==null?'صوت إشعار الهاتف الافتراضي': 'تم اختيار ملف أذان محفوظ على الهاتف'),
+        const SizedBox(height:8),
+        Row(children:[const Expanded(child:Text('مستوى صوت الأذان')),Text('${(adhanVolume*100).round()}%',style:const TextStyle(fontWeight:FontWeight.bold,color:_green))]),
+        Slider(value:adhanVolume.clamp(0.0,1.0).toDouble(),min:0,max:1,divisions:20,label:'${(adhanVolume*100).round()}%',onChanged:(value)=>setState(()=>adhanVolume=value),onChangeEnd:_setAdhanVolume),
+        OutlinedButton.icon(onPressed:_stopAdhanNow,icon:const Icon(Icons.stop_circle_outlined),label:const Text('إيقاف الأذان الآن')),
         OutlinedButton.icon(
           onPressed: downloadingHaram ? null : _downloadHaramAdhan,
           icon: downloadingHaram
@@ -705,7 +726,7 @@ class _PrayerPageState extends State<PrayerPage> {
           FilledButton.tonalIcon(onPressed:audioPath==null?null:_previewAdhan,icon:const Icon(Icons.play_arrow),label:const Text('تجربة الصوت')),
           TextButton(onPressed:audioPath==null?null:_clearAudio,child:const Text('الصوت الافتراضي')),
         ]),
-        const Text('نزّل ملف الأذان بالإنترنت مرة واحدة، وبعد حفظه على الهاتف يمكنك تشغيله دون إنترنت. التنبيهات المجدولة لا تزال تستخدم صوت إشعار أندرويد؛ تشغيل الأذان كاملًا تلقائيًا في الخلفية لم يُنفّذ بعد.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
+        const Text('عند اختيار ملف أذان وتفعيل التنبيهات، سيعمل الأذان كاملًا في الخلفية وقت الصلاة. يمكنك تغيير مستوى صوته من هنا أو إيقافه من زر الإيقاف في هذه الصفحة أو من إشعار الأذان.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت إقامة الصلاة',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
