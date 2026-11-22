@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hijri_date/hijri.dart';
 import 'prayer_page.dart';
@@ -14,17 +15,32 @@ import 'dreams_page.dart';
 import 'media_pages.dart';
 import 'adhkar_page.dart';
 final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
-void main()=>runApp(const NoorApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+  runApp(NoorApp(initialWidgetUri: initialWidgetUri));
+}
 const green=Color(0xFF493326);
 const gold=Color(0xFFE8C77B);
 const softGold=Color(0xFFE8D4A7);
 const ivory=Color(0xFFF5F0E6);
 const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر','البث المباشر','المصحف المعلم للأطفال','الأذكار والأدعية اليومية'];
 const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book,Icons.live_tv,Icons.record_voice_over,Icons.auto_awesome];
-class NoorApp extends StatelessWidget{const NoorApp({super.key});@override Widget build(BuildContext c)=>MaterialApp(debugShowCheckedModeBanner:false,title:'نور الإسلام',theme:ThemeData(useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:green).copyWith(primary:green,onPrimary:Colors.white,secondary:gold,onSecondary:const Color(0xFF332319),surface:ivory),scaffoldBackgroundColor:ivory),home:const SplashScreen());}
+class NoorApp extends StatelessWidget {
+  final Uri? initialWidgetUri;
+  const NoorApp({super.key, this.initialWidgetUri});
+  @override
+  Widget build(BuildContext c) => MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'نور الإسلام',
+    theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: green).copyWith(primary: green, onPrimary: Colors.white, secondary: gold, onSecondary: const Color(0xFF332319), surface: ivory), scaffoldBackgroundColor: ivory),
+    home: SplashScreen(initialWidgetUri: initialWidgetUri),
+  );
+}
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final Uri? initialWidgetUri;
+  const SplashScreen({super.key, this.initialWidgetUri});
   @override State<SplashScreen> createState() => _SplashScreenState();
 }
 
@@ -34,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> {
     super.initState();
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (mounted) Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => HomePage(initialWidgetUri: widget.initialWidgetUri)),
       );
     });
   }
@@ -98,11 +114,49 @@ class _SplashScreenState extends State<SplashScreen> {
   );
 }
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Uri? initialWidgetUri;
+  const HomePage({super.key, this.initialWidgetUri});
   @override State<HomePage> createState() => _HomePageState();
 }
 class _HomePageState extends State<HomePage> {
   int tab = 0;
+  StreamSubscription<Uri?>? _widgetSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _handleWidgetUri(widget.initialWidgetUri);
+    _widgetSubscription = HomeWidget.widgetClicked.listen(_handleWidgetUri);
+  }
+
+  void _handleWidgetUri(Uri? uri) {
+    if (uri == null) return;
+    final target = uri.host.isNotEmpty ? uri.host : (uri.pathSegments.isEmpty ? '' : uri.pathSegments.first);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (target) {
+        case 'quran-majeed':
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MushafBookReader()));
+          break;
+        case 'quran-kareem':
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => ContinuousQuranReader(number: 1, name: quranSurahNames[0])));
+          break;
+        case 'adhkar':
+          setState(() => tab = 4);
+          break;
+        case 'tasbeeh':
+          setState(() => tab = 0);
+          _open(SectionPage(index: 7), titles[7]);
+          break;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _widgetSubscription?.cancel();
+    super.dispose();
+  }
   Future<void> _handleBack() async {
     if (tab != 0) {
       setState(() => tab = 0);
