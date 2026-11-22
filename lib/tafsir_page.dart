@@ -224,7 +224,7 @@ class _TafsirPageState extends State<TafsirPage> {
           ReadingMarksControls(
             section: _positionKey,
             label: '${source == 'muyassar' ? 'التفسير الميسّر' : 'تفسير السعدي'} - سورة ${quranSurahNames[surah - 1]}',
-            position: _readingController.hasClients ? _readingController.offset : 0,
+            getPosition: () => _readingController.hasClients ? _readingController.offset : 0,
             onJump: (value) { if (_readingController.hasClients) _readingController.jumpTo(value.clamp(0.0, _readingController.position.maxScrollExtent).toDouble()); },
           ),
           Expanded(
