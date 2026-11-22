@@ -100,6 +100,24 @@ class HomePage extends StatefulWidget {
 }
 class _HomePageState extends State<HomePage> {
   int tab = 0;
+  Future<void> _handleBack() async {
+    if (tab != 0) {
+      setState(() => tab = 0);
+      return;
+    }
+    final exit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('الخروج من نور الإسلام'),
+        content: const Text('هل تريد الخروج من التطبيق؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('خروج')),
+        ],
+      ),
+    );
+    if (exit == true) SystemNavigator.pop();
+  }
   void _open(Widget page, String title) => Navigator.push(context, MaterialPageRoute(builder: (_) => Directionality(textDirection: TextDirection.rtl, child: Scaffold(appBar: AppBar(title: Text(title), backgroundColor: green, foregroundColor: Colors.white), body: page))));
   @override Widget build(BuildContext c) {
     final pages = <Widget>[
@@ -134,9 +152,9 @@ class _HomePageState extends State<HomePage> {
       const DhikrPage(after:false),
     ];
     return Directionality(textDirection:TextDirection.rtl,child:PopScope<Object?>(
-      canPop: tab == 0,
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && tab != 0) setState(() => tab = 0);
+        if (!didPop) _handleBack();
       },
       child: Scaffold(
       appBar:AppBar(title:const Text('نور الإسلام'),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>_open(const GlobalSearchPage(),'بحث شامل'))]),
