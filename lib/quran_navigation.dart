@@ -73,7 +73,7 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF493326)),
           ),
         ]),
-      ]),
+      ]],
     ),
   );
 }
