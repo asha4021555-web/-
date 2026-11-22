@@ -212,7 +212,7 @@ jobs:
                   calendar.set(Calendar.SECOND, 0)
                   calendar.set(Calendar.MILLISECOND, 0)
                   val todayStart = calendar.timeInMillis
-                  val todayIndex = (0..6).firstOrNull { data.getLong("prayer_day_${it}_date_epoch", -1L) == todayStart } ?: 0
+                  val todayIndex = (0..6).firstOrNull { (data.getString("prayer_day_${it}_date_epoch", "-1")?.toLongOrNull() ?: -1L) == todayStart } ?: 0
 
                   keys.forEachIndexed { index, key ->
                       val value = data.getString("prayer_day_${todayIndex}_${key}", null)
@@ -224,7 +224,7 @@ jobs:
                   var nextTime = 0L
                   for (day in todayIndex..6) {
                       for (index in keys.indices) {
-                          val timestamp = data.getLong("prayer_day_${day}_${keys[index]}_epoch", 0L)
+                          val timestamp = (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
                           if (timestamp > now) {
                               nextIndex = index
                               nextTime = timestamp

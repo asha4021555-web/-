@@ -156,10 +156,10 @@ Future<void> _syncPrayerTimesWidget(Coordinates coordinates, String methodKey) a
     for (var dayIndex = 0; dayIndex < 7; dayIndex++) {
       final date = DateTime(now.year, now.month, now.day + dayIndex);
       final dateStart = DateTime(date.year, date.month, date.day);
-      await HomeWidget.saveWidgetData<int>('prayer_day_${dayIndex}_date_epoch', dateStart.millisecondsSinceEpoch);
+      await HomeWidget.saveWidgetData<String>('prayer_day_${dayIndex}_date_epoch', dateStart.millisecondsSinceEpoch.toString());
       for (var prayerIndex = 0; prayerIndex < prayers.length; prayerIndex++) {
         final time = _getTime(coordinates, date, prayers[prayerIndex], methodKey);
-        await HomeWidget.saveWidgetData<int>('prayer_day_${dayIndex}_${keys[prayerIndex]}_epoch', time.millisecondsSinceEpoch);
+        await HomeWidget.saveWidgetData<String>('prayer_day_${dayIndex}_${keys[prayerIndex]}_epoch', time.millisecondsSinceEpoch.toString());
         if (dayIndex == 0) {
           await HomeWidget.saveWidgetData<String>('prayer_${keys[prayerIndex]}', _timeText(time));
           await HomeWidget.saveWidgetData<String>('prayer_day_0_${keys[prayerIndex]}', _timeText(time));
