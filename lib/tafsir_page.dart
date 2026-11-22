@@ -165,9 +165,7 @@ class _TafsirPageState extends State<TafsirPage> {
                   source == 'muyassar' ? 'التفسير الميسّر' : 'تفسير السعدي',
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _tafsirGreen),
                 ),
-                const SizedBox(height: 5),
-                const Text('يُحمّل التفسير أول مرة من مصدره، ثم يُحفظ على الهاتف لقراءته دون إنترنت.'),
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
                 QuranLocationPicker(
                   title: 'فهرس التفسير والانتقال',
                   onOpen: (selectedSurah, selectedAyah) {
@@ -179,28 +177,6 @@ class _TafsirPageState extends State<TafsirPage> {
                     });
                   },
                 ),
-                DropdownButtonFormField<int>(
-                  value: surah,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'اختر السورة'),
-                  items: List.generate(
-                    114,
-                    (i) => DropdownMenuItem(
-                      value: i + 1,
-                      child: Text('${i + 1} - ${quranSurahNames[i]}'),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      surah = value;
-                      firstDisplayedAyah = 1;
-                      _restoredKey = null;
-                      data = _fetch(surah, source);
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: source,
                   isExpanded: true,
