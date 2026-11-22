@@ -177,8 +177,7 @@ jobs:
 
           (source / 'PrayerTimesWidgetProvider.kt').write_text('''package __PACKAGE__
 
-          import android.appwidget.AppWidgetManager
-          import android.appwidget.AppWidgetProvider
+          import android.appwidget.AppWidgetManager          import android.appwidget.AppWidgetProvider
           import android.content.Context
           import android.net.Uri
           import android.os.SystemClock
@@ -247,7 +246,7 @@ jobs:
                       views.setViewVisibility(R.id.prayer_countdown, View.GONE)
                   }
 
-                  views.setOnClickPendingIntent(R.id.prayer_widget_root, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("nooralislam://prayer-times")))
+                  views.setOnClickPendingIntent(R.id.prayer_widget_root, HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("nooralislam://quran-kareem")))
                   manager.updateAppWidget(id, views)
               }
           }
@@ -357,8 +356,7 @@ jobs:
             --output assets/quran-uthmani.txt
           python3 - <<'PY'
           from pathlib import Path
-          text = Path('assets/quran-uthmani.txt').read_text(encoding='utf-8')
-          lines = text.splitlines()
+          text = Path('assets/quran-uthmani.txt').read_text(encoding='utf-8')          lines = text.splitlines()
           if len(lines) != 6236 or any('|' in line for line in lines):
               raise SystemExit(f'Invalid Quran asset: {len(lines)} lines')
           print('Verified bundled Quran:', len(lines), 'ayahs')
@@ -537,8 +535,7 @@ jobs:
               override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {{
                   if (intent?.action == "com.nooralislam.SET_VOLUME") {{
                       val newVolume = (intent.getFloatExtra("volume", 1f)).coerceIn(0f, 1f)
-                      val currentPlayer = player
-                      if (currentPlayer != null) {{
+                      val currentPlayer = player                      if (currentPlayer != null) {{
                           try {{ currentPlayer.setVolume(newVolume, newVolume) }} catch (_: IllegalStateException) {{ }}
                       }} else {{
                           stopSelf(startId)
@@ -669,6 +666,83 @@ jobs:
 
       - name: Generate Android launcher icons
         run: dart run flutter_launcher_icons
+
+      - name: Fix Quran reader tap toggle and prayer widget shortcut
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/main.dart')
+          source = path.read_text()
+
+          source = source.replace(
+              '  bool _autoRequested = false;\n',
+              '  bool _autoRequested = false;\n  bool _autoPaused = false;\n',
+              1,
+          )
+
+          source = source.replace(
+              '    _autoRequested = true;\n    final runId = ++_scrollRunId;\n',
+              '    _autoRequested = true;\n    _autoPaused = false;\n    final runId = ++_scrollRunId;\n',
+              1,
+          )
+
+          old_pause = '''  void _pauseScrolling() {
+            if (!_autoRequested || !_scrolling) return;
+            ++_scrollRunId;
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(_scrollController.offset);
+            }
+            if (mounted) setState(() => _scrolling = false);
+          }'''
+          new_pause = '''  void _pauseScrolling() {
+            if (!_autoRequested || _autoPaused) return;
+            _autoPaused = true;
+            ++_scrollRunId;
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(_scrollController.offset);
+            }
+            if (mounted) setState(() => _scrolling = false);
+          }'''
+          if source.count(old_pause) != 1:
+              raise SystemExit('Could not uniquely locate Quran pause handler')
+          source = source.replace(old_pause, new_pause, 1)
+
+          old_toggle = '''  void _toggleScrolling() {
+            if (_autoRequested && _scrolling) {
+              _pauseScrolling();
+            } else if (_autoRequested && !_scrolling) {
+              _startScrolling();
+            } else {
+              _startScrolling();
+            }
+          }'''
+          new_toggle = '''  void _toggleScrolling() {
+            if (_autoRequested && !_autoPaused) {
+              _pauseScrolling();
+            } else {
+              _startScrolling();
+            }
+          }'''
+          if source.count(old_toggle) != 1:
+              raise SystemExit('Could not uniquely locate Quran tap toggle')
+          source = source.replace(old_toggle, new_toggle, 1)
+
+          source = source.replace(
+              '    _autoRequested = false;\n    _manualInteraction = false;\n',
+              '    _autoRequested = false;\n    _autoPaused = false;\n    _manualInteraction = false;\n',
+              1,
+          )
+
+          source = source.replace(
+              '      if (mounted && _autoRequested && !_manualInteraction && !_scrolling) {\n',
+              '      if (mounted && _autoRequested && !_autoPaused && !_manualInteraction && !_scrolling) {\n',
+              1,
+          )
+
+          path.write_text(source)
+          print('Updated Quran tap state: first tap pauses, next tap resumes.')
+          PY
 
       - name: Check Dart code
         run: flutter analyze --no-fatal-infos lib
