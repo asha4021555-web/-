@@ -214,7 +214,7 @@ class _HomePageState extends State<HomePage> {
         const HijriDateFooter(),
       ]),
       Stack(children:[
-        Positioned.fill(child:IgnorePointer(child:Center(child:Opacity(opacity:0.055,child:Image.asset('assets/noor_icon.jpg',fit:BoxFit.contain,width:MediaQuery.of(context).size.width*0.78))))),
+        Positioned.fill(child:IgnorePointer(child:Center(child:Image.asset('assets/noor_icon.jpg',fit:BoxFit.contain,width:MediaQuery.of(context).size.width*0.78)))),
         ListView(padding:const EdgeInsets.all(16),children:[
           const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
           const SizedBox(height:10),
@@ -590,7 +590,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   bool _restoreDone = false;
   Timer? _saveTimer;
   double _speed = 140;
-  double _fontSize = 24;
+  double _fontSize = 28;
   late Future<_ContinuousReaderData> _data;
   late Future<void> _preferencesReady;
 
@@ -612,10 +612,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   Future<void> _loadReaderPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final savedFont = prefs.getDouble(_fontSizeKey) ?? 24;
+    final savedFont = prefs.getDouble(_fontSizeKey) ?? 28;
     final savedSpeed = prefs.getDouble(_speedKey) ?? 140;
     setState(() {
-      _fontSize = savedFont.clamp(18.0, 44.0);
+      _fontSize = savedFont.clamp(20.0, 48.0);
       _speed = savedSpeed.clamp(45.0, 300.0);
     });
     await prefs.setInt(_lastSurahKey, widget.number);
@@ -727,6 +727,25 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     });
   }
 
+  void _pauseScrolling() {
+    if (!_autoRequested || !_scrolling) return;
+    ++_scrollRunId;
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.offset);
+    }
+    if (mounted) setState(() => _scrolling = false);
+  }
+
+  void _toggleScrolling() {
+    if (_autoRequested && _scrolling) {
+      _pauseScrolling();
+    } else if (_autoRequested && !_scrolling) {
+      _startScrolling();
+    } else {
+      _startScrolling();
+    }
+  }
+
   void _stopScrolling() {
     ++_scrollRunId;
     _autoRequested = false;
@@ -758,7 +777,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             const Text('حجم خط القرآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
             Row(children: [
               const Icon(Icons.text_decrease, color: green),
-              Expanded(child: Slider(value: _fontSize, min: 18, max: 44, divisions: 13, label: _fontSize.round().toString(), activeColor: green, onChanged: (v) {
+              Expanded(child: Slider(value: _fontSize, min: 20, max: 48, divisions: 14, label: _fontSize.round().toString(), activeColor: green, onChanged: (v) {
                 setState(() => _fontSize = v);
                 refresh(() {});
                 unawaited(_saveReaderSettings());
@@ -869,7 +888,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                     ),
                     IconButton(tooltip: 'حجم الخط', visualDensity: VisualDensity.compact, onPressed: _showFontSettings, icon: const Icon(Icons.format_size, color: green, size: 22)),
                     IconButton(tooltip: 'سرعة القراءة', visualDensity: VisualDensity.compact, onPressed: _showSpeedSettings, icon: const Icon(Icons.speed, color: green, size: 22)),
-                    IconButton(tooltip: _autoRequested ? 'إيقاف التمرير' : 'بدء التمرير', visualDensity: VisualDensity.compact, onPressed: _autoRequested ? _stopScrolling : _startScrolling, icon: Icon(_autoRequested ? Icons.pause_circle_filled : Icons.play_circle_fill, color: green, size: 24)),
+                    IconButton(tooltip: _scrolling ? 'إيقاف مؤقت' : (_autoRequested ? 'استئناف التمرير' : 'بدء التمرير'), visualDensity: VisualDensity.compact, onPressed: _toggleScrolling, icon: Icon(_scrolling ? Icons.pause_circle_filled : Icons.play_circle_fill, color: green, size: 24)),
                     IconButton(tooltip: 'بداية السورة', visualDensity: VisualDensity.compact, onPressed: () { _stopScrolling(); if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut); }, icon: const Icon(Icons.vertical_align_top, color: green, size: 21)),
                   ]),
                 )),
