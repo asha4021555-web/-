@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -147,6 +148,25 @@ String _timeText(DateTime d) {
   return h.toString() + ':' + d.minute.toString().padLeft(2, '0') + (d.hour < 12 ? ' ص' : ' م');
 }
 
+Future<void> _syncPrayerTimesWidget(Coordinates coordinates, String methodKey) async {
+  try {
+    final now = DateTime.now();
+    final today = PrayerTimes.today(coordinates, _parameters(methodKey));
+    final rows = <String, DateTime>{'fajr': today.fajr, 'dhuhr': today.dhuhr, 'asr': today.asr, 'maghrib': today.maghrib, 'isha': today.isha};
+    const arabicNames = {'fajr':'الفجر','dhuhr':'الظهر','asr':'العصر','maghrib':'المغرب','isha':'العشاء'};
+    var nextName = 'الفجر';
+    DateTime? nextTime;
+    for (final entry in rows.entries) { if (entry.value.isAfter(now)) { nextName = arabicNames[entry.key]!; nextTime = entry.value; break; } }
+    nextTime ??= _getTime(coordinates, DateTime(now.year, now.month, now.day + 1), Prayer.fajr, methodKey);
+    for (final entry in rows.entries) { await HomeWidget.saveWidgetData<String>('prayer_${entry.key}', _timeText(entry.value)); }
+    final prefs = await SharedPreferences.getInstance();
+    await HomeWidget.saveWidgetData<String>('prayer_widget_city', prefs.getString('prayer_city') ?? 'موقعي');
+    await HomeWidget.saveWidgetData<String>('prayer_next_name', nextName);
+    await HomeWidget.saveWidgetData<String>('prayer_next_time', _timeText(nextTime));
+    await HomeWidget.updateWidget(androidName: 'PrayerTimesWidgetProvider');
+  } catch (_) { }
+}
+
 Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath) async {
   await _initAlerts();
   await _notifier.cancelAll();
@@ -202,13 +222,14 @@ class _PrayerHomeSummaryState extends State<PrayerHomeSummary> {
   String methodKey='egyptian';
   DateTime now=DateTime.now();
   Timer? ticker;
-  @override void initState(){super.initState();_load();prayerSettingsVersion.addListener(_reloadSettings);ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>now=DateTime.now());});}
+  @override void initState(){super.initState();_load();prayerSettingsVersion.addListener(_reloadSettings);ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted){setState(()=>now=DateTime.now());if(now.second==0&&coordinates!=null)_syncPrayerTimesWidget(coordinates!,methodKey);}});}
   Future<void> _reloadSettings() async {
     final prefs=await SharedPreferences.getInstance();
     final lat=prefs.getDouble('prayer_latitude'),lon=prefs.getDouble('prayer_longitude');
     if(!mounted)return;
     if(lat!=null&&lon!=null)setState(()=>coordinates=Coordinates(lat,lon));
     setState(()=>methodKey=prefs.getString('calculation_method')??'egyptian');
+    if(coordinates!=null)await _syncPrayerTimesWidget(coordinates!,methodKey);
   }
   Future<void> _load() async {
     try {
@@ -226,6 +247,7 @@ class _PrayerHomeSummaryState extends State<PrayerHomeSummary> {
       if(!mounted)return;
       setState(()=>coordinates=c);
       await _reloadSettings();
+      await _syncPrayerTimesWidget(c,methodKey);
     } catch(e) {
       if(!mounted)return;
       setState(()=>error=e.toString().replaceFirst('Exception: ',''));
