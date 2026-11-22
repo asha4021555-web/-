@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'quran_data.dart';
+import 'quran_navigation.dart';
 
 const _tafsirGreen = Color(0xFF493326);
 
@@ -16,6 +17,7 @@ class TafsirPage extends StatefulWidget {
 
 class _TafsirPageState extends State<TafsirPage> {
   int surah = 1;
+  int firstDisplayedAyah = 1;
   late String source;
   late Future<Map<int, String>> data;
   late Future<List<String>> quranText;
@@ -131,6 +133,16 @@ class _TafsirPageState extends State<TafsirPage> {
                 const SizedBox(height: 5),
                 const Text('يُحمّل التفسير أول مرة من مصدره، ثم يُحفظ على الهاتف لقراءته دون إنترنت.'),
                 const SizedBox(height: 10),
+                QuranLocationPicker(
+                  title: 'فهرس التفسير والانتقال',
+                  onOpen: (selectedSurah, selectedAyah) {
+                    setState(() {
+                      surah = selectedSurah;
+                      firstDisplayedAyah = selectedAyah;
+                      data = _fetch(surah, source);
+                    });
+                  },
+                ),
                 DropdownButtonFormField<int>(
                   value: surah,
                   isExpanded: true,
@@ -146,6 +158,7 @@ class _TafsirPageState extends State<TafsirPage> {
                     if (value == null) return;
                     setState(() {
                       surah = value;
+                      firstDisplayedAyah = 1;
                       data = _fetch(surah, source);
                     });
                   },
@@ -218,7 +231,7 @@ class _TafsirPageState extends State<TafsirPage> {
                     }
                     return ListView.builder(
                       padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                      itemCount: quranAyahCounts[surah - 1] + 1,
+                      itemCount: quranAyahCounts[surah - 1] - firstDisplayedAyah + 2,
                       itemBuilder: (context, index) {
                         if (index == 0) {
                           return Padding(
@@ -229,7 +242,8 @@ class _TafsirPageState extends State<TafsirPage> {
                             ),
                           );
                         }
-                        final ayahText = allAyahs[firstAyahIndex + index - 1];
+                        final ayahNumber = firstDisplayedAyah + index - 1;
+                        final ayahText = allAyahs[firstAyahIndex + ayahNumber - 1];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 9),
                           child: Padding(
@@ -238,7 +252,7 @@ class _TafsirPageState extends State<TafsirPage> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
-                                  'الآية $index',
+                                  'الآية $ayahNumber',
                                   style: const TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
@@ -251,7 +265,7 @@ class _TafsirPageState extends State<TafsirPage> {
                                 const Text('التفسير', style: TextStyle(color: _tafsirGreen, fontWeight: FontWeight.bold, fontSize: 16)),
                                 const SizedBox(height: 6),
                                 SelectableText(
-                                  verses[index]!,
+                                  verses[ayahNumber]!,
                                   style: const TextStyle(fontSize: 17, height: 1.9),
                                 ),
                               ],
