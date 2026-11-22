@@ -151,18 +151,23 @@ String _timeText(DateTime d) {
 Future<void> _syncPrayerTimesWidget(Coordinates coordinates, String methodKey) async {
   try {
     final now = DateTime.now();
-    final today = PrayerTimes.today(coordinates, _parameters(methodKey));
-    final rows = <String, DateTime>{'fajr': today.fajr, 'dhuhr': today.dhuhr, 'asr': today.asr, 'maghrib': today.maghrib, 'isha': today.isha};
-    const arabicNames = {'fajr':'الفجر','dhuhr':'الظهر','asr':'العصر','maghrib':'المغرب','isha':'العشاء'};
-    var nextName = 'الفجر';
-    DateTime? nextTime;
-    for (final entry in rows.entries) { if (entry.value.isAfter(now)) { nextName = arabicNames[entry.key]!; nextTime = entry.value; break; } }
-    nextTime ??= _getTime(coordinates, DateTime(now.year, now.month, now.day + 1), Prayer.fajr, methodKey);
-    for (final entry in rows.entries) { await HomeWidget.saveWidgetData<String>('prayer_${entry.key}', _timeText(entry.value)); }
+    const keys = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const prayers = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
+    for (var dayIndex = 0; dayIndex < 7; dayIndex++) {
+      final date = DateTime(now.year, now.month, now.day + dayIndex);
+      final dateStart = DateTime(date.year, date.month, date.day);
+      await HomeWidget.saveWidgetData<int>('prayer_day_${dayIndex}_date_epoch', dateStart.millisecondsSinceEpoch);
+      for (var prayerIndex = 0; prayerIndex < prayers.length; prayerIndex++) {
+        final time = _getTime(coordinates, date, prayers[prayerIndex], methodKey);
+        await HomeWidget.saveWidgetData<int>('prayer_day_${dayIndex}_${keys[prayerIndex]}_epoch', time.millisecondsSinceEpoch);
+        if (dayIndex == 0) {
+          await HomeWidget.saveWidgetData<String>('prayer_${keys[prayerIndex]}', _timeText(time));
+          await HomeWidget.saveWidgetData<String>('prayer_day_0_${keys[prayerIndex]}', _timeText(time));
+        }
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     await HomeWidget.saveWidgetData<String>('prayer_widget_city', prefs.getString('prayer_city') ?? 'موقعي');
-    await HomeWidget.saveWidgetData<String>('prayer_next_name', nextName);
-    await HomeWidget.saveWidgetData<String>('prayer_next_time', _timeText(nextTime));
     await HomeWidget.updateWidget(androidName: 'PrayerTimesWidgetProvider');
   } catch (_) { }
 }
