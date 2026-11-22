@@ -44,9 +44,9 @@ class ReadingMarks {
 class ReadingMarksControls extends StatefulWidget {
   final String section;
   final String label;
-  final double position;
+  final double Function() getPosition;
   final ValueChanged<double> onJump;
-  const ReadingMarksControls({super.key, required this.section, required this.label, required this.position, required this.onJump});
+  const ReadingMarksControls({super.key, required this.section, required this.label, required this.getPosition, required this.onJump});
 
   @override
   State<ReadingMarksControls> createState() => _ReadingMarksControlsState();
@@ -54,7 +54,7 @@ class ReadingMarksControls extends StatefulWidget {
 
 class _ReadingMarksControlsState extends State<ReadingMarksControls> {
   Future<void> _add() async {
-    await ReadingMarks.addMark(widget.section, widget.label, widget.position);
+    await ReadingMarks.addMark(widget.section, widget.label, widget.getPosition());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ العلامة المرجعية')));
   }
