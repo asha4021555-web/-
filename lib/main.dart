@@ -553,7 +553,13 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void initState() {
     super.initState();
     _data = _loadData();
+    unawaited(_rememberLastSurah());
     _scrollController.addListener(_scheduleSavePosition);
+  }
+
+  Future<void> _rememberLastSurah() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('quran_kareem_last_surah', widget.number);
   }
 
   Future<void> _persistCurrentPosition() async {
