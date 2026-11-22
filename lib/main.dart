@@ -134,7 +134,11 @@ class _HomePageState extends State<HomePage> {
     final savedSurah = (prefs.getInt('quran_kareem_last_surah') ?? 1).clamp(1, 114);
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ContinuousQuranReader(number: savedSurah, name: quranSurahNames[savedSurah - 1]),
+      builder: (_) => ContinuousQuranReader(
+        number: savedSurah,
+        name: quranSurahNames[savedSurah - 1],
+        restoreLastPosition: true,
+      ),
     ));
   }
 
@@ -331,7 +335,27 @@ class QuranPage extends StatelessWidget {
 
   void _openTextReader(BuildContext context, int surah, int ayah) {
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => ContinuousQuranReader(number: surah, name: surahs[surah - 1], initialAyah: ayah),
+      // Choosing a surah/ayah explicitly always starts at that selection.
+      // Resume is reserved for the dedicated "continue reading" entry.
+      builder: (_) => ContinuousQuranReader(
+        number: surah,
+        name: surahs[surah - 1],
+        initialAyah: ayah,
+        restoreLastPosition: false,
+      ),
+    ));
+  }
+
+  Future<void> _openLastPosition(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final surah = (prefs.getInt('quran_kareem_last_surah') ?? 1).clamp(1, 114);
+    if (!context.mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ContinuousQuranReader(
+        number: surah,
+        name: surahs[surah - 1],
+        restoreLastPosition: true,
+      ),
     ));
   }
 
@@ -340,6 +364,16 @@ class QuranPage extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 16),
     children: [
       QuranLocationPicker(title: 'فهرس القرآن الكريم', onOpen: (surah, ayah) => _openTextReader(context, surah, ayah)),
+      Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: ListTile(
+          leading: const Icon(Icons.menu_book, color: green, size: 30),
+          title: const Text('متابعة قرآن كريم', style: TextStyle(fontWeight: FontWeight.bold, color: green)),
+          subtitle: const Text('استكمال آخر سورة وموضع وحجم وسرعة قراءة محفوظة'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => _openLastPosition(context),
+        ),
+      ),
       Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: ListTile(
@@ -532,7 +566,14 @@ class ContinuousQuranReader extends StatefulWidget {
   final int number;
   final String name;
   final int initialAyah;
-  const ContinuousQuranReader({super.key, required this.number, required this.name, this.initialAyah = 1});
+  final bool restoreLastPosition;
+  const ContinuousQuranReader({
+    super.key,
+    required this.number,
+    required this.name,
+    this.initialAyah = 1,
+    this.restoreLastPosition = false,
+  });
 
   @override
   State<ContinuousQuranReader> createState() => _ContinuousQuranReaderState();
@@ -549,43 +590,73 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   double _fontSize = 24;
   late Future<_ContinuousReaderData> _data;
 
+  static const _lastSurahKey = 'quran_kareem_last_surah';
+  static const _fontSizeKey = 'quran_kareem_font_size';
+  static const _speedKey = 'quran_kareem_reading_speed';
+
+  String get _positionKey => 'quran_kareem_position_${widget.number}';
+
   @override
   void initState() {
     super.initState();
     _data = _loadData();
-    unawaited(_rememberLastSurah());
     _scrollController.addListener(_scheduleSavePosition);
+    unawaited(_loadReaderPreferences());
   }
 
-  Future<void> _rememberLastSurah() async {
+  Future<void> _loadReaderPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('quran_kareem_last_surah', widget.number);
+    if (!mounted) return;
+    final savedFont = prefs.getDouble(_fontSizeKey) ?? 24;
+    final savedSpeed = prefs.getDouble(_speedKey) ?? 140;
+    setState(() {
+      _fontSize = savedFont.clamp(18.0, 44.0);
+      _speed = savedSpeed.clamp(45.0, 300.0);
+    });
+    await prefs.setInt(_lastSurahKey, widget.number);
+    if (!widget.restoreLastPosition || widget.initialAyah != 1) {
+      await prefs.setDouble(_positionKey, 0);
+    }
   }
 
   Future<void> _persistCurrentPosition() async {
-    if (!_scrollController.hasClients) return;
-    final offset = _scrollController.offset;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('noor_reading_last_quran_text_${widget.number}', offset);
-    await prefs.setInt('quran_kareem_last_surah', widget.number);
+    await prefs.setInt(_lastSurahKey, widget.number);
+    await prefs.setDouble(_fontSizeKey, _fontSize);
+    await prefs.setDouble(_speedKey, _speed);
+    if (_scrollController.hasClients) {
+      await prefs.setDouble(_positionKey, _scrollController.offset);
+    }
   }
 
   void _scheduleSavePosition() {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 250), () {
-      _persistCurrentPosition();
+      unawaited(_persistCurrentPosition());
     });
   }
 
   Future<void> _restorePosition() async {
     if (_restoreDone) return;
     _restoreDone = true;
-    final saved = await ReadingMarks.loadLast('quran_text_${widget.number}');
+    final prefs = await SharedPreferences.getInstance();
+    final saved = widget.restoreLastPosition && widget.initialAyah == 1
+        ? (prefs.getDouble(_positionKey) ?? 0)
+        : 0.0;
+    if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scrollController.hasClients && widget.initialAyah == 1 && saved > 0) {
-        _scrollController.jumpTo(saved.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble());
+      if (mounted && _scrollController.hasClients && saved > 0) {
+        _scrollController.jumpTo(
+          saved.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble(),
+        );
       }
     });
+  }
+
+  Future<void> _saveReaderSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_fontSizeKey, _fontSize);
+    await prefs.setDouble(_speedKey, _speed);
   }
 
   Future<_ContinuousReaderData> _loadData() async {
@@ -661,9 +732,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void dispose() {
     ++_scrollRunId;
     _saveTimer?.cancel();
-    if (_scrollController.hasClients) {
-      _persistCurrentPosition();
-    }
+    unawaited(_persistCurrentPosition());
     _scrollController.removeListener(_scheduleSavePosition);
     _scrollController.dispose();
     super.dispose();
@@ -763,7 +832,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                         divisions: 13,
                         label: _fontSize.round().toString(),
                         activeColor: green,
-                        onChanged: (value) => setState(() => _fontSize = value),
+                        onChanged: (value) {
+                          setState(() => _fontSize = value);
+                          unawaited(_saveReaderSettings());
+                        },
                       )),
                       IconButton(
                         tooltip: 'تكبير حجم الخط',
@@ -777,7 +849,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                         ChoiceChip(
                           label: Text(preset.$1),
                           selected: _speed == preset.$2,
-                          onSelected: (_) => setState(() => _speed = preset.$2),
+                          onSelected: (_) {
+                            setState(() => _speed = preset.$2);
+                            unawaited(_saveReaderSettings());
+                          },
                         ),
                     ]),
                     Row(children: [
