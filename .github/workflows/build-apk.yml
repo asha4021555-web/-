@@ -391,8 +391,8 @@ jobs:
       - name: Check Dart code
         run: flutter analyze --no-fatal-infos lib
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build universal release APK for 32-bit and 64-bit ARM
+        run: flutter build apk --release --target-platform android-arm,android-arm64
 
       - name: Upload Android release files
         uses: actions/upload-artifact@v4
