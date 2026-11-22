@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'quran_data.dart';
 import 'quran_navigation.dart';
+import 'reading_marks.dart';
 
 const _tafsirGreen = Color(0xFF493326);
 
@@ -21,15 +23,48 @@ class _TafsirPageState extends State<TafsirPage> {
   late String source;
   late Future<Map<int, String>> data;
   late Future<List<String>> quranText;
+  final ScrollController _readingController = ScrollController();
+  Timer? _saveTimer;
+  String? _restoredKey;
 
   @override
   void initState() {
     super.initState();
+    _readingController.addListener(_scheduleSavePosition);
     source = widget.initialSource;
     data = _fetch(surah, source);
     quranText = rootBundle.loadString('assets/quran-uthmani.txt').then(
       (value) => LineSplitter.split(value).where((line) => line.trim().isNotEmpty).toList(),
     );
+  }
+
+  String get _positionKey => 'tafsir_${source}_${surah}';
+
+  void _scheduleSavePosition() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_readingController.hasClients) ReadingMarks.saveLast(_positionKey, _readingController.offset);
+    });
+  }
+
+  Future<void> _restorePosition() async {
+    final key = _positionKey;
+    if (_restoredKey == key) return;
+    _restoredKey = key;
+    final saved = await ReadingMarks.loadLast(key);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _readingController.hasClients && _positionKey == key && saved > 0) {
+        _readingController.jumpTo(saved.clamp(0.0, _readingController.position.maxScrollExtent));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _saveTimer?.cancel();
+    _readingController.removeListener(_scheduleSavePosition);
+    _readingController.dispose();
+    super.dispose();
   }
 
   void _reload() {
@@ -139,6 +174,7 @@ class _TafsirPageState extends State<TafsirPage> {
                     setState(() {
                       surah = selectedSurah;
                       firstDisplayedAyah = selectedAyah;
+                      _restoredKey = null;
                       data = _fetch(surah, source);
                     });
                   },
@@ -159,6 +195,7 @@ class _TafsirPageState extends State<TafsirPage> {
                     setState(() {
                       surah = value;
                       firstDisplayedAyah = 1;
+                      _restoredKey = null;
                       data = _fetch(surah, source);
                     });
                   },
@@ -176,12 +213,19 @@ class _TafsirPageState extends State<TafsirPage> {
                     if (value == null) return;
                     setState(() {
                       source = value;
+                      _restoredKey = null;
                       data = _fetch(surah, source);
                     });
                   },
                 ),
               ],
             ),
+          ),
+          ReadingMarksControls(
+            section: _positionKey,
+            label: '${source == 'muyassar' ? 'التفسير الميسّر' : 'تفسير السعدي'} - سورة ${quranSurahNames[surah - 1]}',
+            position: _readingController.hasClients ? _readingController.offset : 0,
+            onJump: (value) { if (_readingController.hasClients) _readingController.jumpTo(value.clamp(0.0, _readingController.position.maxScrollExtent)); },
           ),
           Expanded(
             child: FutureBuilder<Map<int, String>>(
@@ -229,7 +273,9 @@ class _TafsirPageState extends State<TafsirPage> {
                     if (allAyahs.length < firstAyahIndex + quranAyahCounts[surah - 1]) {
                       return const Center(child: Text('ملف نص القرآن غير مكتمل؛ لم نعرض تفسيرًا دون الآية المقابلة له.'));
                     }
+                    _restorePosition();
                     return ListView.builder(
+                      controller: _readingController,
                       padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
                       itemCount: quranAyahCounts[surah - 1] - firstDisplayedAyah + 2,
                       itemBuilder: (context, index) {
