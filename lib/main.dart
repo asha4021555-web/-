@@ -503,7 +503,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     final saved = await ReadingMarks.loadLast('quran_text_${widget.number}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scrollController.hasClients && widget.initialAyah == 1 && saved > 0) {
-        _scrollController.jumpTo(saved.clamp(0.0, _scrollController.position.maxScrollExtent));
+        _scrollController.jumpTo(saved.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble());
       }
     });
   }
@@ -608,7 +608,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 section: 'quran_text_${widget.number}',
                 label: 'سورة ${widget.name} - موضع القراءة الحالي',
                 position: _scrollController.hasClients ? _scrollController.offset : 0,
-                onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent)); },
+                onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
               ),
               Expanded(child: ListView(
                 controller: _scrollController,
@@ -879,7 +879,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
               section: 'mushaf_pages',
               label: 'قرآن مجيد - صفحة ${index + 1}',
               position: index.toDouble(),
-              onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603)),
+              onJump: (value) => controller.jumpToPage(value.round().clamp(0, 603).toInt()),
             ),
             SafeArea(top: false, child: Row(children: [
               IconButton(onPressed: index == 0 ? null : () => controller.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut), icon: const Icon(Icons.chevron_right)),
