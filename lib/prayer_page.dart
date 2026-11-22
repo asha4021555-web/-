@@ -510,7 +510,7 @@ class _PrayerPageState extends State<PrayerPage> {
     if(value){
       try{await _refresh();_msg('تم ضبط التنبيهات للأيام السبعة القادمة.');}
       catch(e){setState(()=>alerts=false);_msg('تعذر ضبط التنبيهات: '+e.toString());}
-    }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});_msg('تم إيقاف التنبيهات.');}
+    }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});await _adhanChannel.invokeMethod('stopPlayback').catchError((_) {});_msg('تم إيقاف التنبيهات والأذان الجاري.');}
   }
   Future<void> _setAdhanVolume(double value) async {
     final prefs=await SharedPreferences.getInstance();
@@ -630,6 +630,7 @@ class _PrayerPageState extends State<PrayerPage> {
     setState(()=>audioPath=null);
     if (alerts) await _refresh();
     await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});
+    await _adhanChannel.invokeMethod('stopPlayback').catchError((_) {});
     _msg('تم الرجوع إلى صوت إشعار الهاتف.');
   }
   Future<void> _previewIqamaAudio() async {
