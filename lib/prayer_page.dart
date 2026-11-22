@@ -513,8 +513,13 @@ class _PrayerPageState extends State<PrayerPage> {
     }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});await _adhanChannel.invokeMethod('stopPlayback').catchError((_) {});_msg('تم إيقاف التنبيهات والأذان الجاري.');}
   }
   Future<void> _setAdhanVolume(double value) async {
+    final volume = value.clamp(0.0,1.0).toDouble();
     final prefs=await SharedPreferences.getInstance();
-    await prefs.setDouble('adhan_volume',value.clamp(0.0,1.0).toDouble());
+    await prefs.setDouble('adhan_volume',volume);
+    // Apply the new level to an adhan that is already playing, if any.
+    await _adhanChannel.invokeMethod('setPlaybackVolume', {'volume': volume})
+        .catchError((_) {});
+    // Also update the volume stored for future scheduled adhans.
     if(alerts) await _refresh();
   }
   Future<void> _stopAdhanNow() async {
@@ -711,6 +716,8 @@ class _PrayerPageState extends State<PrayerPage> {
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت الأذان',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
         Text(audioPath==null?'صوت إشعار الهاتف الافتراضي': 'تم اختيار ملف أذان محفوظ على الهاتف'),
+        const SizedBox(height:4),
+        const Text('حرّك شريط الصوت لتغيير مستوى الأذان الجاري فورًا، أو لضبط صوت الأذان القادم.',style:TextStyle(color:Colors.black54,fontSize:13)),
         const SizedBox(height:8),
         Row(children:[const Expanded(child:Text('مستوى صوت الأذان')),Text('${(adhanVolume*100).round()}%',style:const TextStyle(fontWeight:FontWeight.bold,color:_green))]),
         Slider(value:adhanVolume.clamp(0.0,1.0).toDouble(),min:0,max:1,divisions:20,label:'${(adhanVolume*100).round()}%',onChanged:(value)=>setState(()=>adhanVolume=value),onChangeEnd:_setAdhanVolume),

@@ -435,6 +435,13 @@ jobs:
                                       result.success(true)
                                   }} catch (error: Exception) {{ result.error("ADHAN_SCHEDULE", error.message, null) }}
                               }}
+                              "setPlaybackVolume" -> {{
+                                  val volume = (call.argument<Double>("volume") ?: 1.0).toFloat().coerceIn(0f, 1f)
+                                  startService(Intent(this, AdhanPlaybackService::class.java)
+                                      .setAction("com.nooralislam.SET_VOLUME")
+                                      .putExtra("volume", volume))
+                                  result.success(true)
+                              }}
                               "stopPlayback" -> {{
                                   stopService(Intent(this, AdhanPlaybackService::class.java))
                                   result.success(true)
@@ -492,6 +499,16 @@ jobs:
               override fun onBind(intent: Intent?): IBinder? = null
 
               override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {{
+                  if (intent?.action == "com.nooralislam.SET_VOLUME") {{
+                      val newVolume = (intent.getFloatExtra("volume", 1f)).coerceIn(0f, 1f)
+                      val currentPlayer = player
+                      if (currentPlayer != null) {{
+                          try {{ currentPlayer.setVolume(newVolume, newVolume) }} catch (_: IllegalStateException) {{ }}
+                      }} else {{
+                          stopSelf(startId)
+                      }}
+                      return START_NOT_STICKY
+                  }}
                   if (intent?.action == "com.nooralislam.STOP_ADHAN") {{
                       player?.stop()
                       player?.release()
