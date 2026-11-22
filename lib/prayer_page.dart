@@ -147,7 +147,7 @@ String _timeText(DateTime d) {
   return h.toString() + ':' + d.minute.toString().padLeft(2, '0') + (d.hour < 12 ? ' ص' : ' م');
 }
 
-Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath) async {
+Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath) async {
   await _initAlerts();
   await _notifier.cancelAll();
   const details = NotificationDetails(android: AndroidNotificationDetails(
@@ -159,12 +159,15 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
   const prayers = [Prayer.fajr, Prayer.dhuhr, Prayer.asr, Prayer.maghrib, Prayer.isha];
   const names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
   final adhanTimes = <int>[];
+  final iqamaTimes = <int>[];
   for (var day = 0; day < 7; day++) {
     final date = DateTime(now.year, now.month, now.day + day);
     for (var i = 0; i < prayers.length; i++) {
       final at = _getTime(c, date, prayers[i], methodKey);
       if (at.isAfter(now)) adhanTimes.add(at.millisecondsSinceEpoch);
-      final events = [at.subtract(const Duration(minutes: 10)), at, at.add(Duration(minutes: iqama))];
+      final iqamaAt = at.add(Duration(minutes: iqama));
+      if (iqamaAt.isAfter(now)) iqamaTimes.add(iqamaAt.millisecondsSinceEpoch);
+      final events = [at.subtract(const Duration(minutes: 10)), at, iqamaAt];
       final labels = ['باقي 10 دقائق على صلاة ' + names[i], 'حان الآن وقت صلاة ' + names[i], 'موعد الإقامة لصلاة ' + names[i]];
       for (var kind = 0; kind < events.length; kind++) {
         if (!events[kind].isAfter(now)) continue;
@@ -182,6 +185,8 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
   await _adhanChannel.invokeMethod('scheduleAdhan', {
     'times': adhanTimes,
     'audioPath': selectedAudioPath,
+    'iqamaTimes': iqamaTimes,
+    'iqamaAudioPath': selectedIqamaAudioPath,
   }).catchError((_) {});
 }
 
@@ -271,6 +276,7 @@ class _PrayerPageState extends State<PrayerPage> {
   bool loading=false,alerts=false;
   int iqama=10;
   String? audioPath;
+  String? iqamaAudioPath;
   bool downloadingHaram=false;
   final AudioPlayer audioPlayer=AudioPlayer();
 
@@ -287,6 +293,8 @@ class _PrayerPageState extends State<PrayerPage> {
       iqama=prefs.getInt('iqama_delay')??10;
       final savedAudio=prefs.getString('adhan_audio_path');
       audioPath=savedAudio!=null && File(savedAudio).existsSync() ? savedAudio : null;
+      final savedIqamaAudio=prefs.getString('iqama_audio_path');
+      iqamaAudioPath=savedIqamaAudio!=null && File(savedIqamaAudio).existsSync() ? savedIqamaAudio : null;
     });
     if (coordinates == null) {
       await _locate();
@@ -462,7 +470,7 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _refresh() async {
     final c=coordinates;
     if(c==null)return;
-    await _scheduleAlerts(c,iqama,methodKey,audioPath);
+    await _scheduleAlerts(c,iqama,methodKey,audioPath,iqamaAudioPath);
   }
   Future<void> _toggle(bool value) async {
     if(value&&coordinates==null){await _locate();if(coordinates==null)return;}
@@ -496,6 +504,22 @@ class _PrayerPageState extends State<PrayerPage> {
     setState(()=>audioPath=file.path);
     if (alerts) await _refresh();
     _msg('تم حفظ ملف الأذان. سيعمل تلقائيًا عند دخول وقت الصلاة إذا كانت التنبيهات مفعّلة.');
+  }
+
+  Future<void> _chooseIqamaAudio() async {
+    final result=await FilePicker.pickFile(type:FileType.audio);
+    if(result==null)return;
+    final bytes=await result.readAsBytes();
+    final ext=result.extension??'audio';
+    final dir=await getApplicationDocumentsDirectory();
+    final path=dir.path+'/iqama_'+DateTime.now().millisecondsSinceEpoch.toString()+'.'+ext;
+    final file=await File(path).writeAsBytes(bytes,flush:true);
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setString('iqama_audio_path',file.path);
+    if(!mounted)return;
+    setState(()=>iqamaAudioPath=file.path);
+    if (alerts) await _refresh();
+    _msg('تم حفظ ملف الإقامة. سيعمل تلقائيًا في موعد الإقامة إذا كانت التنبيهات مفعّلة.');
   }
 
   Future<void> _downloadHaramAdhan() async {
@@ -565,6 +589,19 @@ class _PrayerPageState extends State<PrayerPage> {
     if (alerts) await _refresh();
     await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});
     _msg('تم الرجوع إلى صوت إشعار الهاتف.');
+  }
+  Future<void> _previewIqamaAudio() async {
+    if(iqamaAudioPath==null)return;
+    try{await audioPlayer.setFilePath(iqamaAudioPath!);await audioPlayer.play();}
+    catch(e){_msg('تعذر تشغيل ملف الإقامة: '+e.toString());}
+  }
+  Future<void> _clearIqamaAudio() async {
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.remove('iqama_audio_path');
+    if(!mounted)return;
+    setState(()=>iqamaAudioPath=null);
+    if (alerts) await _refresh();
+    _msg('تم إلغاء صوت الإقامة المخصص.');
   }
   void _msg(String s){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));}
   @override void dispose(){audioPlayer.dispose();super.dispose();}
@@ -644,6 +681,16 @@ class _PrayerPageState extends State<PrayerPage> {
           TextButton(onPressed:audioPath==null?null:_clearAudio,child:const Text('الصوت الافتراضي')),
         ]),
         const Text('نزّل ملف الأذان بالإنترنت مرة واحدة، وبعد حفظه على الهاتف يمكنك تشغيله دون إنترنت. التنبيهات المجدولة لا تزال تستخدم صوت إشعار أندرويد؛ تشغيل الأذان كاملًا تلقائيًا في الخلفية لم يُنفّذ بعد.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
+      ]))),
+      Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        const Text('صوت إقامة الصلاة',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
+        Text(iqamaAudioPath==null?'سيُستخدم صوت إشعار الهاتف عند موعد الإقامة':'تم اختيار ملف إقامة من الهاتف'),
+        Wrap(spacing:8,runSpacing:8,children:[
+          OutlinedButton.icon(onPressed:_chooseIqamaAudio,icon:const Icon(Icons.audio_file),label:const Text('اختيار ملف الإقامة من الهاتف')),
+          FilledButton.tonalIcon(onPressed:iqamaAudioPath==null?null:_previewIqamaAudio,icon:const Icon(Icons.play_arrow),label:const Text('تجربة صوت الإقامة')),
+          TextButton(onPressed:iqamaAudioPath==null?null:_clearIqamaAudio,child:const Text('إلغاء الصوت المخصص')),
+        ]),
+        const Text('اختر ملف إقامة الصلاة بصيغة صوتية من هاتفك. سيُحفظ داخل التطبيق ويُشغّل في موعد الإقامة المحدد بعد الأذان.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
       ]))),
     ]);
   }
