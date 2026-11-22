@@ -356,7 +356,8 @@ jobs:
             --output assets/quran-uthmani.txt
           python3 - <<'PY'
           from pathlib import Path
-          text = Path('assets/quran-uthmani.txt').read_text(encoding='utf-8')          lines = text.splitlines()
+          text = Path('assets/quran-uthmani.txt').read_text(encoding='utf-8')
+          lines = text.splitlines()
           if len(lines) != 6236 or any('|' in line for line in lines):
               raise SystemExit(f'Invalid Quran asset: {len(lines)} lines')
           print('Verified bundled Quran:', len(lines), 'ayahs')
