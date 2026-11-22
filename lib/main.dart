@@ -610,10 +610,18 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                 getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
                 onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
               ),
-              Expanded(child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                children: children,
+              Expanded(child: NotificationListener<UserScrollNotification>(
+                onNotification: (notification) {
+                  if (notification.direction != ScrollDirection.idle && _scrolling) {
+                    _stopScrolling();
+                  }
+                  return false;
+                },
+                child: ListView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+                  children: children,
+                ),
               )),
               Material(
                 elevation: 8,
