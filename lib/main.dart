@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hijri_date/hijri.dart';
 import 'prayer_page.dart';
 import 'quran_data.dart';
+import 'quran_navigation.dart';
 import 'tafsir_page.dart';
 import 'dreams_page.dart';
 import 'media_pages.dart';
@@ -258,35 +259,40 @@ class SectionPage extends StatelessWidget{final int index;const SectionPage({sup
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
-  static const surahAyahCounts = quranAyahCounts;
+
+  void _openTextReader(BuildContext context, int surah, int ayah) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ContinuousQuranReader(number: surah, name: surahs[surah - 1], initialAyah: ayah),
+    ));
+  }
 
   @override
-  Widget build(BuildContext context) => ListView.separated(
-    padding: const EdgeInsets.all(12),
-    itemCount: surahs.length + 1,
-    separatorBuilder: (_, __) => const Divider(height: 1),
-    itemBuilder: (context, i) {
-      if (i == 0) {
-        return Card(
-          child: ListTile(
-            leading: const Icon(Icons.menu_book, color: green, size: 30),
-            title: const Text('قرآن مجيد', style: TextStyle(fontWeight: FontWeight.bold, color: green)),
-            subtitle: const Text('المصحف كاملًا مع تقليب الصفحات بالعرض'),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MushafBookReader())),
-          ),
-        );
-      }
-      final surahIndex = i - 1;
-      return ListTile(
-        leading: CircleAvatar(child: Text('${i}')),
-        title: Text('سورة ${surahs[surahIndex]}'),
-        trailing: const Icon(Icons.chevron_left),
-        onTap: () => Navigator.push(context, MaterialPageRoute(
-          builder: (_) => ContinuousQuranReader(number: i, name: surahs[surahIndex]),
-        )),
-      );
-    },
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.only(bottom: 16),
+    children: [
+      QuranLocationPicker(title: 'فهرس القرآن الكريم', onOpen: (surah, ayah) => _openTextReader(context, surah, ayah)),
+      Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: ListTile(
+          leading: const Icon(Icons.menu_book, color: green, size: 30),
+          title: const Text('قرآن مجيد', style: TextStyle(fontWeight: FontWeight.bold, color: green)),
+          subtitle: const Text('مصحف الصفحات المصوّرة - فهرس مستقل'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MushafBookReader())),
+        ),
+      ),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Text('سور القرآن الكريم', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
+      ),
+      for (var i = 0; i < surahs.length; i++)
+        ListTile(
+          leading: CircleAvatar(child: Text('${i + 1}')),
+          title: Text('سورة ${surahs[i]}'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => _openTextReader(context, i + 1, 1),
+        ),
+    ],
   );
 }
 
@@ -456,7 +462,8 @@ class _SurahReaderState extends State<SurahReader> {
 class ContinuousQuranReader extends StatefulWidget {
   final int number;
   final String name;
-  const ContinuousQuranReader({super.key, required this.number, required this.name});
+  final int initialAyah;
+  const ContinuousQuranReader({super.key, required this.number, required this.name, this.initialAyah = 1});
 
   @override
   State<ContinuousQuranReader> createState() => _ContinuousQuranReaderState();
@@ -549,7 +556,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   const Text('قراءة نصية مع تمرير رأسي متواصل', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ]),
               ),
-              for (var i = 0; i < data.ayahs.length; i++)
+              for (var i = widget.initialAyah - 1; i < data.ayahs.length; i++)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
                   child: Text(
@@ -698,7 +705,9 @@ class _MushafPageReaderState extends State<MushafPageReader>{
 }
 
 class MushafBookReader extends StatefulWidget {
-  const MushafBookReader({super.key});
+  final int initialSurah;
+  final int initialAyah;
+  const MushafBookReader({super.key, this.initialSurah = 1, this.initialAyah = 1});
   @override
   State<MushafBookReader> createState() => _MushafBookReaderState();
 }
@@ -707,6 +716,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   late Future<List<Map<String, dynamic>>> futurePages;
   final PageController controller = PageController();
   int index = 0;
+  bool _initialJumpDone = false;
 
   @override
   void initState() {
@@ -774,7 +784,22 @@ class _MushafBookReaderState extends State<MushafBookReader> {
           if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('تعذر فتح المصحف: ${snapshot.error}', textAlign: TextAlign.center)));
           final pages = snapshot.data ?? [];
           if (pages.isEmpty) return const Center(child: Text('لا توجد صفحات'));
+          if (!_initialJumpDone) {
+            _initialJumpDone = true;
+            final target = pages.indexWhere((page) => (page['ayahs'] as List).any((a) => a['surah'] == widget.initialSurah && a['number'] == widget.initialAyah));
+            if (target >= 0) {
+              index = target;
+              WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted && controller.hasClients) controller.jumpToPage(target); });
+            }
+          }
           return Column(children: [
+            QuranLocationPicker(
+              title: 'فهرس قرآن مجيد',
+              onOpen: (surah, ayah) {
+                final target = pages.indexWhere((page) => (page['ayahs'] as List).any((a) => a['surah'] == surah && a['number'] == ayah));
+                if (target >= 0) controller.jumpToPage(target);
+              },
+            ),
             Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Text('صفحة ${index + 1} من 604 • اسحب يمينًا ويسارًا للتقليب', style: const TextStyle(color: green, fontWeight: FontWeight.bold))),
             Expanded(child: PageView.builder(
               controller: controller,
