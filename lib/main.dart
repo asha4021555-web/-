@@ -780,7 +780,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
           padding: const EdgeInsets.all(18),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Text('سرعة التمرير التلقائي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
-            Slider(value: _speed.clamp(20.0, 400.0), min: 20, max: 400, divisions: 38, label: _speed.round().toString(), activeColor: green, onChanged: (v) {
+            Slider(value: _speed, min: 20, max: 400, divisions: 38, label: _speed.round().toString(), activeColor: green, onChanged: (v) {
               setState(() => _speed = v);
               refresh(() {});
               unawaited(_saveReaderSettings());
@@ -816,16 +816,6 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             final data = snapshot.data!;
             _restorePosition();
             final children = <Widget>[
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: green, borderRadius: BorderRadius.circular(14)),
-                child: Column(children: [
-                  Text('قرآن كريم • سورة ${widget.name}', style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  const Text('قراءة نصية مع تمرير رأسي متواصل', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ),
               for (var i = widget.initialAyah - 1; i < data.ayahs.length; i++)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
