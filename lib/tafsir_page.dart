@@ -54,7 +54,7 @@ class _TafsirPageState extends State<TafsirPage> {
     final saved = await ReadingMarks.loadLast(key);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _readingController.hasClients && _positionKey == key && saved > 0) {
-        _readingController.jumpTo(saved.clamp(0.0, _readingController.position.maxScrollExtent));
+        _readingController.jumpTo(saved.clamp(0.0, _readingController.position.maxScrollExtent).toDouble());
       }
     });
   }
@@ -225,7 +225,7 @@ class _TafsirPageState extends State<TafsirPage> {
             section: _positionKey,
             label: '${source == 'muyassar' ? 'التفسير الميسّر' : 'تفسير السعدي'} - سورة ${quranSurahNames[surah - 1]}',
             position: _readingController.hasClients ? _readingController.offset : 0,
-            onJump: (value) { if (_readingController.hasClients) _readingController.jumpTo(value.clamp(0.0, _readingController.position.maxScrollExtent)); },
+            onJump: (value) { if (_readingController.hasClients) _readingController.jumpTo(value.clamp(0.0, _readingController.position.maxScrollExtent).toDouble()); },
           ),
           Expanded(
             child: FutureBuilder<Map<int, String>>(
