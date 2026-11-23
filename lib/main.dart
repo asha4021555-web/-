@@ -910,7 +910,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   onPointerDown: _readerPointerDown,
                   onPointerMove: _readerPointerMove,
                   onPointerUp: _readerPointerUp,
-                  onPointerCancel: _resetReaderPointer,
+                  onPointerCancel: (_) => _resetReaderPointer(),
                   child: ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
