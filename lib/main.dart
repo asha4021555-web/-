@@ -247,15 +247,53 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height:12),
         const HijriDateFooter(),
       ]),
-      Stack(children:[
-        Positioned.fill(child:IgnorePointer(child:Center(child:Image.asset('assets/noor_icon.jpg',fit:BoxFit.contain,width:MediaQuery.of(context).size.width*0.78)))),
-        ListView(padding:const EdgeInsets.all(16),children:[
-          const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
-          const SizedBox(height:10),
+      Column(children:[
+        Expanded(child:ListView(padding:const EdgeInsets.fromLTRB(16,16,16,10),children:[
+          Row(children:[
+            Container(width:44,height:44,decoration:BoxDecoration(color:gold.withValues(alpha:.22),borderRadius:BorderRadius.circular(14)),child:const Icon(Icons.settings_rounded,color:green,size:26)),
+            const SizedBox(width:12),
+            const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
+              Text('خصص التطبيق بالطريقة اللي تناسبك',style:TextStyle(fontSize:12,color:Colors.black54)),
+            ])),
+          ]),
+          const SizedBox(height:18),
           const ThemeModeSetting(),
-          ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
+          const SizedBox(height:12),
+          Card(
+            clipBehavior:Clip.antiAlias,
+            child:InkWell(
+              onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة'),
+              child:Container(
+                decoration:BoxDecoration(
+                  gradient:LinearGradient(begin:Alignment.centerRight,end:Alignment.centerLeft,colors:[green,const Color(0xFF302117)]),
+                  borderRadius:BorderRadius.circular(12),
+                ),
+                padding:const EdgeInsets.symmetric(horizontal:16,vertical:18),
+                child:Row(children:[
+                  Container(width:48,height:48,decoration:BoxDecoration(color:gold.withValues(alpha:.20),borderRadius:BorderRadius.circular(15)),child:const Icon(Icons.mosque_rounded,color:gold,size:28)),
+                  const SizedBox(width:14),
+                  const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text('مواقيت الصلاة والتنبيهات',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:Colors.white)),
+                    SizedBox(height:4),
+                    Text('الموقع، طريقة الحساب، الأذان والإقامة',style:TextStyle(fontSize:11,color:Colors.white70)),
+                  ])),
+                  const Icon(Icons.arrow_back_ios_new_rounded,color:gold,size:18),
+                ]),
+              ),
+            ),
+          ),
+          const SizedBox(height:12),
           const HijriOffsetSetting(),
-        ]),
+        ])),
+        Padding(
+          padding:const EdgeInsets.only(bottom:10,top:2),
+          child:Column(mainAxisSize:MainAxisSize.min,children:[
+            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:76,height:76,fit:BoxFit.cover)),
+            const SizedBox(height:5),
+            const Text('نور الإسلام',style:TextStyle(color:green,fontWeight:FontWeight.bold,fontSize:13)),
+          ]),
+        ),
       ]),
 
       const QiblaPage(),
@@ -413,6 +451,8 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
   Future<void> _set(int value) async {
     final p=await SharedPreferences.getInstance();
     await p.setInt('hijri_offset',value);
+    await HomeWidget.saveWidgetData<int>('hijri_offset',value);
+    await HomeWidget.updateWidget(androidName:'PrayerTimesWidgetProvider');
     if(!mounted)return;
     setState(()=>offset=value);
     hijriOffsetChanged.value++;
