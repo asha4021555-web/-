@@ -12,7 +12,7 @@ dependencies:
   http: ^1.2.2
   adhan: ^2.0.0+1
   geolocator: ^14.1.2
-  flutter_compass: ^0.8.1
+  true_compass: ^0.0.2
   flutter_local_notifications: ^19.5.0
   timezone: ^0.10.1
   file_picker: ^13.4.0
