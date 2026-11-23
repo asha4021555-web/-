@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_compass/flutter_compass.dart';
+import 'package:true_compass/true_compass.dart';
 import 'dart:math' as math;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -760,41 +760,178 @@ class QiblaPage extends StatefulWidget {
  const QiblaPage({super.key});
  @override State<QiblaPage> createState()=>_QiblaPageState();
 }
-class _QiblaPageState extends State<QiblaPage>{
- double? qibla;String? error;bool loading=false;
+
+class _QiblaPageState extends State<QiblaPage> {
+ double? qibla;
+ String? error;
+ bool loading=false;
+ TrueCompass? _compass;
+
  Future<void> _calculate() async {
   setState(() { loading=true; error=null; });
-  try{final c=await _configuredCoordinates();final value=Qibla(c).direction;if(!mounted)return;setState(() { qibla=value; loading=false; });}
-  catch(e){if(!mounted)return;setState(() { error=e.toString().replaceFirst('Exception: ' , ''); loading=false; });}
+  TrueCompass? nextCompass;
+  try {
+   final coordinates=await _configuredCoordinates();
+   final bearing=Qibla(coordinates).direction;
+   nextCompass=TrueCompass(
+    options: CompassOptions(
+     location: CompassLocation(
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+     ),
+     updateInterval: const Duration(milliseconds: 100),
+     smoothing: const CompassSmoothing.circularAverage(window: 8),
+     compensateScreenOrientation: true,
+    ),
+   );
+   final availability=await nextCompass.checkAvailability();
+   if(availability!=CompassAvailability.available) {
+    await nextCompass.dispose();
+    nextCompass=null;
+    throw Exception(
+     availability==CompassAvailability.noSensor
+      ? 'حساس البوصلة غير موجود أو غير مدعوم في هذا الهاتف.'
+      : 'تعذر تشغيل حساس البوصلة: ${availability.name}',
+    );
+   }
+   if(!mounted) {
+    await nextCompass.dispose();
+    return;
+   }
+   final previous=_compass;
+   setState(() {
+    qibla=bearing;
+    _compass=nextCompass;
+    loading=false;
+    error=null;
+   });
+   nextCompass=null;
+   if(previous!=null) unawaited(previous.dispose());
+  } catch(e) {
+   if(nextCompass!=null) await nextCompass.dispose();
+   if(!mounted) return;
+   setState(() {
+    error=e.toString().replaceFirst('Exception: ','');
+    loading=false;
+   });
+  }
  }
- @override void initState(){super.initState();_calculate();}
- @override Widget build(BuildContext context)=>Center(child:Padding(padding:const EdgeInsets.all(24),child:StreamBuilder<CompassEvent>(
-  stream:FlutterCompass.events,builder:(context,snapshot){
-   final heading=snapshot.data?.heading;final available=heading!=null;
-   final angle=qibla==null||heading==null?0.0:(qibla!-heading)*math.pi/180;
-   return Column(mainAxisSize:MainAxisSize.min,children:[
-    const Text('بوصلة اتجاه القبلة',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),
-    const SizedBox(height:18),
-    SizedBox(width:270,height:270,child:Stack(alignment:Alignment.center,children:[
-     Container(width:260,height:260,decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xFFF5F0E6),border:Border.all(color:_green,width:5),boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:10,offset:Offset(0,4))])),
-     const Positioned(top:12,child:Text('شمال',style:TextStyle(fontWeight:FontWeight.bold,color:_green))),
-     const Positioned(bottom:12,child:Text('جنوب',style:TextStyle(color:Colors.black54))),
-     const Positioned(left:12,child:Text('شرق',style:TextStyle(color:Colors.black54))),
-     const Positioned(right:12,child:Text('غرب',style:TextStyle(color:Colors.black54))),
-     if(qibla!=null&&available)Transform.rotate(angle:angle,child:const Icon(Icons.navigation,size:145,color:Color(0xFFB3261E))),
-     if(qibla==null||!available)const Icon(Icons.explore,size:110,color:Colors.black26),
-     const CircleAvatar(radius:7,backgroundColor:_green),
-     if(qibla!=null&&available)const Positioned(bottom:48,child:Text('اتجاه القبلة',style:TextStyle(color:Color(0xFFB3261E),fontWeight:FontWeight.bold))),
-    ])),
-    const SizedBox(height:14),
-    if(heading!=null)Text('اتجاه الهاتف: ${heading.toStringAsFixed(0)}° • القبلة: ${qibla?.toStringAsFixed(0)??'--'}°',style:const TextStyle(fontWeight:FontWeight.w600)),
-    if(qibla!=null&&!available)const Text('حساس البوصلة غير متاح في هذا الهاتف.',textAlign:TextAlign.center),
-    if(error!=null)Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:Colors.red)),
-    if(loading)const Padding(padding:EdgeInsets.all(8),child:CircularProgressIndicator()),
-    const SizedBox(height:10),
-    OutlinedButton.icon(onPressed:loading?null:_calculate,icon:const Icon(Icons.my_location),label:const Text('تحديث موقعي واتجاه القبلة')),
-    const Text('حرّك الهاتف ببطء؛ السهم الأحمر يتحرك مع اتجاه الجهاز نحو القبلة.',textAlign:TextAlign.center,style:TextStyle(fontSize:12,color:Colors.black54)),
-   ]);
-  },
- )));
+
+ @override void initState() {
+  super.initState();
+  _calculate();
+ }
+
+ @override void dispose() {
+  final compass=_compass;
+  if(compass!=null) unawaited(compass.dispose());
+  super.dispose();
+ }
+
+ @override Widget build(BuildContext context) {
+  final compass=_compass;
+  if(compass==null) {
+   return Center(child:Padding(
+    padding:const EdgeInsets.all(24),
+    child:Column(mainAxisSize:MainAxisSize.min,children:[
+     const CircularProgressIndicator(),
+     const SizedBox(height:12),
+     Text(error??'جارٍ تشغيل البوصلة وتحديد اتجاه القبلة...'),
+     const SizedBox(height:12),
+     OutlinedButton.icon(
+      onPressed:loading?null:_calculate,
+      icon:const Icon(Icons.refresh),
+      label:const Text('إعادة المحاولة'),
+     ),
+    ]),
+   ));
+  }
+  return StreamBuilder<CompassHeading>(
+   stream:compass.headings,
+   builder:(context,snapshot) {
+    final sample=snapshot.data;
+    final heading=sample?.bestHeading;
+    final available=heading!=null;
+    final angle=qibla==null||heading==null
+      ? 0.0
+      : (qibla!-heading)*math.pi/180;
+    final accuracyText=switch(sample?.accuracy) {
+     CompassAccuracy.high=>'دقة الحساس: عالية',
+     CompassAccuracy.medium=>'دقة الحساس: متوسطة',
+     CompassAccuracy.low=>'دقة الحساس: ضعيفة',
+     CompassAccuracy.unreliable=>'قراءة الحساس غير موثوقة',
+     _=>'جارٍ تحديد دقة الحساس',
+    };
+    return Center(child:SingleChildScrollView(
+     padding:const EdgeInsets.all(20),
+     child:Column(mainAxisSize:MainAxisSize.min,children:[
+      const Text('بوصلة اتجاه القبلة',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),
+      const SizedBox(height:18),
+      SizedBox(width:270,height:270,child:Stack(alignment:Alignment.center,children:[
+       Container(
+        width:260,height:260,
+        decoration:BoxDecoration(
+         shape:BoxShape.circle,
+         color:const Color(0xFFF5F0E6),
+         border:Border.all(color:_green,width:5),
+         boxShadow:const [BoxShadow(color:Color(0x22000000),blurRadius:10,offset:Offset(0,4))],
+        ),
+       ),
+       const Positioned(top:12,child:Text('شمال',style:TextStyle(fontWeight:FontWeight.bold,color:_green))),
+       const Positioned(bottom:12,child:Text('جنوب',style:TextStyle(color:Colors.black54))),
+       const Positioned(left:12,child:Text('شرق',style:TextStyle(color:Colors.black54))),
+       const Positioned(right:12,child:Text('غرب',style:TextStyle(color:Colors.black54))),
+       if(qibla!=null&&available)
+        Transform.rotate(
+         angle:angle,
+         child:const Icon(Icons.navigation,size:145,color:Color(0xFFB3261E)),
+        ),
+       if(qibla==null||!available)
+        const Icon(Icons.explore,size:110,color:Colors.black26),
+       const CircleAvatar(radius:7,backgroundColor:_green),
+       if(qibla!=null&&available)
+        const Positioned(bottom:48,child:Text('اتجاه القبلة',style:TextStyle(color:Color(0xFFB3261E),fontWeight:FontWeight.bold))),
+      ])),
+      const SizedBox(height:14),
+      if(heading!=null)
+       Text(
+        'اتجاه الهاتف: ${heading.toStringAsFixed(0)}° • القبلة: ${qibla?.toStringAsFixed(0)??'--'}°',
+        style:const TextStyle(fontWeight:FontWeight.w600),
+       ),
+      if(sample!=null)
+       Padding(
+        padding:const EdgeInsets.only(top:6),
+        child:Text(accuracyText,style:const TextStyle(fontSize:13,color:Colors.black54)),
+       ),
+      if(sample?.needsCalibration==true)
+       Container(
+        margin:const EdgeInsets.only(top:10),
+        padding:const EdgeInsets.all(12),
+        decoration:BoxDecoration(color:const Color(0xFFFFF3CD),borderRadius:BorderRadius.circular(10)),
+        child:const Text(
+         'عاير البوصلة: حرّك الهاتف في الهواء على شكل رقم 8 عدة مرات، وابتعد عن المعادن والمغناطيس والجرابات المغناطيسية.',
+         textAlign:TextAlign.center,
+         style:TextStyle(color:Color(0xFF765400),height:1.5),
+        ),
+       ),
+      if(snapshot.hasError)
+       Text('خطأ في حساس البوصلة: ${snapshot.error}',textAlign:TextAlign.center,style:const TextStyle(color:Colors.red)),
+      if(error!=null)
+       Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:Colors.red)),
+      const SizedBox(height:12),
+      OutlinedButton.icon(
+       onPressed:loading?null:_calculate,
+       icon:const Icon(Icons.my_location),
+       label:const Text('تحديث موقعي واتجاه القبلة'),
+      ),
+      const Text(
+       'أمسك الهاتف بشكل أفقي وحرّكه ببطء. تم تصحيح الاتجاه إلى الشمال الحقيقي وتنعيم اهتزاز قراءة الحساس.',
+       textAlign:TextAlign.center,
+       style:TextStyle(fontSize:12,color:Colors.black54,height:1.5),
+      ),
+     ]),
+    ));
+   },
+  );
+ }
 }
