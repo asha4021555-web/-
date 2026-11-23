@@ -341,6 +341,8 @@ class ThemeModeSetting extends StatelessWidget {
   Future<void> _setMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('dark_mode', mode == ThemeMode.dark);
+    await HomeWidget.saveWidgetData<bool>('dark_mode', mode == ThemeMode.dark);
+    await HomeWidget.updateWidget(androidName: 'PrayerTimesWidgetProvider');
     appThemeMode.value = mode;
   }
 
