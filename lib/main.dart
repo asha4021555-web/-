@@ -15,8 +15,12 @@ import 'dreams_page.dart';
 import 'media_pages.dart';
 import 'adhkar_page.dart';
 final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
+final ValueNotifier<ThemeMode> appThemeMode = ValueNotifier(ThemeMode.light);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  appThemeMode.value = prefs.getBool('dark_mode') == true ? ThemeMode.dark : ThemeMode.light;
   final initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
   runApp(NoorApp(initialWidgetUri: initialWidgetUri));
 }
@@ -30,11 +34,38 @@ class NoorApp extends StatelessWidget {
   final Uri? initialWidgetUri;
   const NoorApp({super.key, this.initialWidgetUri});
   @override
-  Widget build(BuildContext c) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    title: 'نور الإسلام',
-    theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: green).copyWith(primary: green, onPrimary: Colors.white, secondary: gold, onSecondary: const Color(0xFF332319), surface: ivory), scaffoldBackgroundColor: ivory),
-    home: SplashScreen(initialWidgetUri: initialWidgetUri),
+  Widget build(BuildContext c) => ValueListenableBuilder<ThemeMode>(
+    valueListenable: appThemeMode,
+    builder: (context, mode, _) => MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'نور الإسلام',
+      themeMode: mode,
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: green).copyWith(primary: green, onPrimary: Colors.white, secondary: gold, onSecondary: const Color(0xFF332319), surface: ivory),
+        scaffoldBackgroundColor: ivory,
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: gold, brightness: Brightness.dark).copyWith(
+          primary: gold,
+          onPrimary: const Color(0xFF332319),
+          secondary: softGold,
+          surface: const Color(0xFF202020),
+        ),
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF202020), foregroundColor: Colors.white),
+        cardTheme: const CardThemeData(color: Color(0xFF202020)),
+        navigationBarTheme: const NavigationBarThemeData(
+          backgroundColor: Color(0xFF202020),
+          indicatorColor: Color(0xFF55452E),
+        ),
+        dividerColor: Colors.white24,
+      ),
+      home: SplashScreen(initialWidgetUri: initialWidgetUri),
+    ),
   );
 }
 
@@ -218,6 +249,7 @@ class _HomePageState extends State<HomePage> {
         ListView(padding:const EdgeInsets.all(16),children:[
           const Text('الإعدادات',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold,color:green)),
           const SizedBox(height:10),
+          const ThemeModeSetting(),
           ListTile(leading:const Icon(Icons.access_time,color:green),title:const Text('مواقيت الصلاة والتنبيهات'),trailing:const Icon(Icons.chevron_left),onTap:()=>_open(const PrayerPage(),'مواقيت الصلاة')),
           const HijriOffsetSetting(),
         ]),
@@ -303,6 +335,54 @@ class HijriCalendarPage extends StatelessWidget {
     ]));
   }
 }
+class ThemeModeSetting extends StatelessWidget {
+  const ThemeModeSetting({super.key});
+
+  Future<void> _setMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dark_mode', mode == ThemeMode.dark);
+    appThemeMode.value = mode;
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('مظهر التطبيق', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('اختر الوضع المناسب لك، وسيتم حفظ اختيارك تلقائيًا.', style: TextStyle(fontSize: 12)),
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: appThemeMode,
+            builder: (context, mode, _) => Column(
+              children: [
+                RadioListTile<ThemeMode>(
+                  contentPadding: EdgeInsets.zero,
+                  value: ThemeMode.light,
+                  groupValue: mode,
+                  title: const Text('الوضع الفاتح'),
+                  secondary: const Icon(Icons.light_mode_outlined),
+                  onChanged: (value) { if (value != null) _setMode(value); },
+                ),
+                RadioListTile<ThemeMode>(
+                  contentPadding: EdgeInsets.zero,
+                  value: ThemeMode.dark,
+                  groupValue: mode,
+                  title: const Text('الوضع الداكن'),
+                  secondary: const Icon(Icons.dark_mode_outlined),
+                  onChanged: (value) { if (value != null) _setMode(value); },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class HijriOffsetSetting extends StatefulWidget {
   const HijriOffsetSetting({super.key});
   @override State<HijriOffsetSetting> createState()=>_HijriOffsetSettingState();
