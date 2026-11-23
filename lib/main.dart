@@ -162,7 +162,7 @@ class _HomePageState extends State<HomePage> {
           _open(SectionPage(index: 7), titles[7]);
           break;
         case 'prayer-times':
-          _open(const PrayerPage(), 'مواقيت الصلاة');
+          _openQuranKareemAtLastPosition();
           break;
       }
     });
@@ -588,6 +588,43 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   bool _autoRequested = false;
   bool _autoPaused = false;
   bool _manualInteraction = false;
+  int? _readerPointerId;
+  Offset? _readerPointerStart;
+  DateTime? _readerPointerDownAt;
+  bool _readerPointerMoved = false;
+
+  void _readerPointerDown(PointerDownEvent event) {
+    if (_readerPointerId != null) return;
+    _readerPointerId = event.pointer;
+    _readerPointerStart = event.position;
+    _readerPointerDownAt = DateTime.now();
+    _readerPointerMoved = false;
+  }
+
+  void _readerPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _readerPointerId || _readerPointerMoved) return;
+    final start = _readerPointerStart;
+    if (start != null && (event.position - start).distance > 12) {
+      _readerPointerMoved = true;
+    }
+  }
+
+  void _readerPointerUp(PointerEvent event) {
+    if (event.pointer != _readerPointerId) return;
+    final downAt = _readerPointerDownAt;
+    final isTap = !_readerPointerMoved &&
+        downAt != null &&
+        DateTime.now().difference(downAt) <= const Duration(milliseconds: 450);
+    _resetReaderPointer();
+    if (isTap) _toggleScrolling();
+  }
+
+  void _resetReaderPointer() {
+    _readerPointerId = null;
+    _readerPointerStart = null;
+    _readerPointerDownAt = null;
+    _readerPointerMoved = false;
+  }
   bool _restoreDone = false;
   Timer? _saveTimer;
   double _speed = 140;
@@ -868,9 +905,12 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   }
                   return false;
                 },
-                child: GestureDetector(
+                child: Listener(
                   behavior: HitTestBehavior.translucent,
-                  onTap: _toggleScrolling,
+                  onPointerDown: _readerPointerDown,
+                  onPointerMove: _readerPointerMove,
+                  onPointerUp: _readerPointerUp,
+                  onPointerCancel: _resetReaderPointer,
                   child: ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
