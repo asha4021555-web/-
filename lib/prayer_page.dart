@@ -764,6 +764,7 @@ class QiblaPage extends StatefulWidget {
 class _QiblaPageState extends State<QiblaPage> {
  double? qibla;
  String? error;
+ String _locationName='الموقع المحفوظ';
  bool loading=false;
  TrueCompass? _compass;
 
@@ -772,6 +773,8 @@ class _QiblaPageState extends State<QiblaPage> {
   TrueCompass? nextCompass;
   try {
    final coordinates=await _configuredCoordinates();
+   final prefs=await SharedPreferences.getInstance();
+   final locationName=prefs.getString('prayer_city')??'الموقع الحالي';
    final bearing=Qibla(coordinates).direction;
    nextCompass=TrueCompass(
     options: CompassOptions(
@@ -801,6 +804,7 @@ class _QiblaPageState extends State<QiblaPage> {
    final previous=_compass;
    setState(() {
     qibla=bearing;
+    _locationName=locationName;
     _compass=nextCompass;
     loading=false;
     error=null;
@@ -834,7 +838,7 @@ class _QiblaPageState extends State<QiblaPage> {
    return Center(child:Padding(
     padding:const EdgeInsets.all(24),
     child:Column(mainAxisSize:MainAxisSize.min,children:[
-     const CircularProgressIndicator(),
+     if(loading) const CircularProgressIndicator() else const Icon(Icons.explore,size:54,color:_green),
      const SizedBox(height:12),
      Text(error??'جارٍ تشغيل البوصلة وتحديد اتجاه القبلة...'),
      const SizedBox(height:12),
@@ -903,6 +907,10 @@ class _QiblaPageState extends State<QiblaPage> {
         padding:const EdgeInsets.only(top:6),
         child:Text(accuracyText,style:const TextStyle(fontSize:13,color:Colors.black54)),
        ),
+      Padding(
+       padding:const EdgeInsets.only(top:4),
+       child:Text('الموقع المستخدم: $_locationName',style:const TextStyle(fontSize:12,color:Colors.black54)),
+      ),
       if(sample?.needsCalibration==true)
        Container(
         margin:const EdgeInsets.only(top:10),
@@ -922,7 +930,7 @@ class _QiblaPageState extends State<QiblaPage> {
       OutlinedButton.icon(
        onPressed:loading?null:_calculate,
        icon:const Icon(Icons.my_location),
-       label:const Text('تحديث موقعي واتجاه القبلة'),
+       label:const Text('إعادة حساب اتجاه القبلة'),
       ),
       const Text(
        'أمسك الهاتف بشكل أفقي وحرّكه ببطء. تم تصحيح الاتجاه إلى الشمال الحقيقي وتنعيم اهتزاز قراءة الحساس.',
