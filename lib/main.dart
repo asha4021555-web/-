@@ -586,6 +586,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
   bool _scrolling = false;
   bool _autoRequested = false;
+  bool _autoPaused = false;
   bool _manualInteraction = false;
   bool _restoreDone = false;
   Timer? _saveTimer;
@@ -721,14 +722,15 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void _resumeAfterManualDrag() {
     if (!_autoRequested) return;
     Future<void>.delayed(const Duration(milliseconds: 80), () {
-      if (mounted && _autoRequested && !_manualInteraction && !_scrolling) {
+      if (mounted && _autoRequested && !_autoPaused && !_manualInteraction && !_scrolling) {
         _startScrolling();
       }
     });
   }
 
   void _pauseScrolling() {
-    if (!_autoRequested || !_scrolling) return;
+    if (!_autoRequested || _autoPaused) return;
+    _autoPaused = true;
     ++_scrollRunId;
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(_scrollController.offset);
@@ -737,11 +739,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   }
 
   void _toggleScrolling() {
-    if (_autoRequested && _scrolling) {
+    if (_autoRequested && !_autoPaused) {
       _pauseScrolling();
-    } else if (_autoRequested && !_scrolling) {
-      _startScrolling();
     } else {
+      _autoPaused = false;
       _startScrolling();
     }
   }
@@ -749,6 +750,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   void _stopScrolling() {
     ++_scrollRunId;
     _autoRequested = false;
+    _autoPaused = false;
     _manualInteraction = false;
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(_scrollController.offset);
