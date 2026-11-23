@@ -50,13 +50,16 @@ class NoorApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(seedColor: gold, brightness: Brightness.dark).copyWith(
-          primary: gold,
-          onPrimary: const Color(0xFF332319),
-          secondary: softGold,
+          primary: Colors.white,
+          onPrimary: const Color(0xFF121212),
+          secondary: Colors.white,
+          onSecondary: const Color(0xFF121212),
           surface: const Color(0xFF202020),
         ),
         scaffoldBackgroundColor: const Color(0xFF121212),
-        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF202020), foregroundColor: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
+        primaryIconTheme: const IconThemeData(color: Colors.white),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF202020), foregroundColor: Colors.white, iconTheme: IconThemeData(color: Colors.white)),
         cardTheme: const CardThemeData(color: Color(0xFF202020)),
         navigationBarTheme: const NavigationBarThemeData(
           backgroundColor: Color(0xFF202020),
@@ -340,49 +343,63 @@ class ThemeModeSetting extends StatelessWidget {
 
   Future<void> _setMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('dark_mode', mode == ThemeMode.dark);
-    await HomeWidget.saveWidgetData<bool>('dark_mode', mode == ThemeMode.dark);
+    final enabled = mode == ThemeMode.dark;
+    await prefs.setBool('dark_mode', enabled);
+    await HomeWidget.saveWidgetData<bool>('dark_mode', enabled);
     await HomeWidget.updateWidget(androidName: 'PrayerTimesWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'NoorAdhkarWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'NoorTasbeehWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'QuranMajeedWidgetProvider');
+    await HomeWidget.updateWidget(androidName: 'QuranKareemWidgetProvider');
     appThemeMode.value = mode;
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('مظهر التطبيق', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          const Text('اختر الوضع المناسب لك، وسيتم حفظ اختيارك تلقائيًا.', style: TextStyle(fontSize: 12)),
-          ValueListenableBuilder<ThemeMode>(
-            valueListenable: appThemeMode,
-            builder: (context, mode, _) => Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: ThemeMode.light,
-                  groupValue: mode,
-                  title: const Text('الوضع الفاتح'),
-                  secondary: const Icon(Icons.light_mode_outlined),
-                  onChanged: (value) { if (value != null) _setMode(value); },
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = dark ? Colors.white : green;
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Icon(Icons.palette_outlined, color: accent, size: 24),
+              const SizedBox(width: 10),
+              const Expanded(child: Text('مظهر التطبيق', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+              ValueListenableBuilder<ThemeMode>(
+                valueListenable: appThemeMode,
+                builder: (context, mode, _) => Icon(
+                  mode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+                  color: accent,
                 ),
-                RadioListTile<ThemeMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: ThemeMode.dark,
-                  groupValue: mode,
-                  title: const Text('الوضع الداكن'),
-                  secondary: const Icon(Icons.dark_mode_outlined),
-                  onChanged: (value) { if (value != null) _setMode(value); },
-                ),
-              ],
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Text('اختَر شكل التطبيق، وسيُحفظ اختيارك تلقائيًا.',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 14),
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: appThemeMode,
+              builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+                showSelectedIcon: true,
+                segments: const [
+                  ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('فاتح')),
+                  ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('داكن')),
+                ],
+                selected: {mode},
+                onSelectionChanged: (values) {
+                  if (values.isNotEmpty) _setMode(values.first);
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class HijriOffsetSetting extends StatefulWidget {
@@ -941,9 +958,14 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
 
   @override
   Widget build(BuildContext context) {
+    final darkMode = Theme.of(context).brightness == Brightness.dark;
+    final readerBackground = darkMode ? const Color(0xFF121212) : Colors.white;
+    final readerText = darkMode ? Colors.white : const Color(0xFF30251E);
+    final controlColor = darkMode ? Colors.white : green;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: readerBackground,
         body: FutureBuilder<_ContinuousReaderData>(
           future: _data,
           builder: (context, snapshot) {
@@ -970,7 +992,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                       fontFamily: 'Amiri',
                       fontSize: _fontSize,
                       height: 2.0,
-                      color: const Color(0xFF30251E),
+                      color: readerText,
                     ),
                   ),
                 ),
@@ -1002,11 +1024,11 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               )),
               Material(
                 elevation: 10,
-                color: Colors.white,
+                color: darkMode ? const Color(0xFF202020) : Colors.white,
                 child: SafeArea(top: false, child: SizedBox(
                   height: 50,
                   child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    IconButton(tooltip: 'إغلاق القراءة', visualDensity: VisualDensity.compact, onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: green, size: 21)),
+                    IconButton(tooltip: 'إغلاق القراءة', visualDensity: VisualDensity.compact, onPressed: () => Navigator.of(context).pop(), icon: Icon(Icons.close, color: controlColor, size: 21)),
                     ReadingMarksControls(
                       compact: true,
                       section: 'quran_text_${widget.number}',
@@ -1014,10 +1036,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                       getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
                       onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
                     ),
-                    IconButton(tooltip: 'حجم الخط', visualDensity: VisualDensity.compact, onPressed: _showFontSettings, icon: const Icon(Icons.format_size, color: green, size: 22)),
-                    IconButton(tooltip: 'سرعة القراءة', visualDensity: VisualDensity.compact, onPressed: _showSpeedSettings, icon: const Icon(Icons.speed, color: green, size: 22)),
-                    IconButton(tooltip: _scrolling ? 'إيقاف مؤقت' : (_autoRequested ? 'استئناف التمرير' : 'بدء التمرير'), visualDensity: VisualDensity.compact, onPressed: _toggleScrolling, icon: Icon(_scrolling ? Icons.pause_circle_filled : Icons.play_circle_fill, color: green, size: 24)),
-                    IconButton(tooltip: 'بداية السورة', visualDensity: VisualDensity.compact, onPressed: () { _stopScrolling(); if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut); }, icon: const Icon(Icons.vertical_align_top, color: green, size: 21)),
+                    IconButton(tooltip: 'حجم الخط', visualDensity: VisualDensity.compact, onPressed: _showFontSettings, icon: Icon(Icons.format_size, color: controlColor, size: 22)),
+                    IconButton(tooltip: 'سرعة القراءة', visualDensity: VisualDensity.compact, onPressed: _showSpeedSettings, icon: Icon(Icons.speed, color: controlColor, size: 22)),
+                    IconButton(tooltip: _scrolling ? 'إيقاف مؤقت' : (_autoRequested ? 'استئناف التمرير' : 'بدء التمرير'), visualDensity: VisualDensity.compact, onPressed: _toggleScrolling, icon: Icon(_scrolling ? Icons.pause_circle_filled : Icons.play_circle_fill, color: controlColor, size: 24)),
+                    IconButton(tooltip: 'بداية السورة', visualDensity: VisualDensity.compact, onPressed: () { _stopScrolling(); if (_scrollController.hasClients) _scrollController.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut); }, icon: Icon(Icons.vertical_align_top, color: controlColor, size: 21)),
                   ]),
                 )),
               ),
