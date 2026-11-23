@@ -61,11 +61,21 @@ Future<Coordinates> _configuredCoordinates() async {
   final lat = prefs.getDouble('prayer_latitude');
   final lon = prefs.getDouble('prayer_longitude');
   if (lat != null && lon != null) return Coordinates(lat, lon);
-  final p = await _getPosition();
-  await prefs.setDouble('prayer_latitude', p.latitude);
-  await prefs.setDouble('prayer_longitude', p.longitude);
+
+  // Prefer Android's cached location first so the Qibla compass does not
+  // remain blocked waiting for a fresh GPS fix.
+  Position? position;
+  try {
+    position = await Geolocator.getLastKnownPosition();
+  } catch (_) {
+    position = null;
+  }
+  position ??= await _getPosition();
+
+  await prefs.setDouble('prayer_latitude', position.latitude);
+  await prefs.setDouble('prayer_longitude', position.longitude);
   await prefs.setString('prayer_city', 'الموقع الحالي');
-  return Coordinates(p.latitude, p.longitude);
+  return Coordinates(position.latitude, position.longitude);
 }
 
 Future<Position> _getPosition() async {
@@ -787,7 +797,7 @@ class _QiblaPageState extends State<QiblaPage> {
      compensateScreenOrientation: true,
     ),
    );
-   final availability=await nextCompass.checkAvailability();
+   final availability=await nextCompass.checkAvailability().timeout(const Duration(seconds: 6));
    if(availability!=CompassAvailability.available) {
     await nextCompass.dispose();
     nextCompass=null;
