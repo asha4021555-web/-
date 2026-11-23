@@ -536,7 +536,8 @@ jobs:
               override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {{
                   if (intent?.action == "com.nooralislam.SET_VOLUME") {{
                       val newVolume = (intent.getFloatExtra("volume", 1f)).coerceIn(0f, 1f)
-                      val currentPlayer = player                      if (currentPlayer != null) {{
+                      val currentPlayer = player
+                      if (currentPlayer != null) {{
                           try {{ currentPlayer.setVolume(newVolume, newVolume) }} catch (_: IllegalStateException) {{ }}
                       }} else {{
                           stopSelf(startId)
