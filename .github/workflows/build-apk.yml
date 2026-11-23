@@ -100,10 +100,12 @@ jobs:
           import android.content.Context
           import android.content.Intent
           import android.net.Uri
+          import android.graphics.Color
           import android.view.View
           import android.util.TypedValue
           import android.widget.RemoteViews
           import es.antonborri.home_widget.HomeWidgetLaunchIntent
+          import es.antonborri.home_widget.HomeWidgetPlugin
 
           abstract class NoorBaseWidget : AppWidgetProvider() {{
               abstract val title: String
@@ -113,6 +115,13 @@ jobs:
               override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {{
                   ids.forEach {{ id ->
                       val views = RemoteViews(context.packageName, R.layout.noor_home_widget)
+                      val darkMode = HomeWidgetPlugin.getData(context).getBoolean("dark_mode", false)
+                      views.setInt(R.id.widget_root, "setBackgroundResource",
+                          if (darkMode) R.drawable.noor_widget_background_dark else R.drawable.noor_widget_background)
+                      val titleColor = if (darkMode) Color.WHITE else Color.rgb(73, 51, 38)
+                      val subtitleColor = if (darkMode) Color.LTGRAY else Color.rgb(102, 85, 72)
+                      views.setTextColor(R.id.widget_title, titleColor)
+                      views.setTextColor(R.id.widget_subtitle, subtitleColor)
                       views.setTextViewText(R.id.widget_title, title)
                       views.setTextViewText(R.id.widget_subtitle, subtitle)
                       views.setViewVisibility(R.id.widget_count, View.GONE)
@@ -150,7 +159,16 @@ jobs:
 
               private fun render(context: Context, manager: AppWidgetManager, id: Int) {{
                   val count = context.getSharedPreferences("noor_widget_data", Context.MODE_PRIVATE).getInt("tasbeeh_count", 0)
+                  val darkMode = HomeWidgetPlugin.getData(context).getBoolean("dark_mode", false)
                   val views = RemoteViews(context.packageName, R.layout.noor_home_widget)
+                  views.setInt(R.id.widget_root, "setBackgroundResource",
+                      if (darkMode) R.drawable.noor_widget_background_dark else R.drawable.noor_widget_background)
+                  val titleColor = if (darkMode) Color.WHITE else Color.rgb(73, 51, 38)
+                  val subtitleColor = if (darkMode) Color.LTGRAY else Color.rgb(102, 85, 72)
+                  views.setTextColor(R.id.widget_title, titleColor)
+                  views.setTextColor(R.id.widget_subtitle, subtitleColor)
+                  views.setTextColor(R.id.widget_count, titleColor)
+                  views.setTextColor(R.id.widget_action, titleColor)
                   views.setTextViewText(R.id.widget_title, "السبحة الإلكترونية")
                   views.setTextViewText(R.id.widget_subtitle, "عداد التسبيح من الشاشة الرئيسية")
                   views.setTextViewText(R.id.widget_count, count.toString())
