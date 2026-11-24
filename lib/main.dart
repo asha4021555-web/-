@@ -764,18 +764,19 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     _readerPointerDownAt = null;
     _readerPointerMoved = false;
   }
-  bool _restoreDone = false;
   Timer? _saveTimer;
   double _speed = 140;
   double _fontSize = 28;
+  int _startAyah = 1;
+  bool _preferencesLoaded = false;
+  final Map<int, GlobalKey> _ayahKeys = <int, GlobalKey>{};
   late Future<_ContinuousReaderData> _data;
   late Future<void> _preferencesReady;
 
   static const _lastSurahKey = 'quran_kareem_last_surah';
+  static const _lastAyahKey = 'quran_kareem_last_ayah';
   static const _fontSizeKey = 'quran_kareem_font_size';
   static const _speedKey = 'quran_kareem_reading_speed';
-
-  String get _positionKey => 'quran_kareem_position_${widget.number}';
 
   @override
   void initState() {
@@ -791,26 +792,47 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     if (!mounted) return;
     final savedFont = prefs.getDouble(_fontSizeKey) ?? 28;
     final savedSpeed = prefs.getDouble(_speedKey) ?? 140;
+    final savedAyah = (prefs.getInt(_lastAyahKey) ?? widget.initialAyah)
+        .clamp(1, quranAyahCounts[widget.number - 1]);
     setState(() {
-      _fontSize = savedFont.clamp(20.0, 48.0);
+      _fontSize = savedFont.clamp(8.0, 90.0);
       _speed = savedSpeed.clamp(45.0, 300.0);
+      _startAyah = widget.restoreLastPosition ? savedAyah : widget.initialAyah;
+      _preferencesLoaded = true;
     });
     await prefs.setInt(_lastSurahKey, widget.number);
   }
 
+  int _currentVisibleAyah() {
+    var bestAyah = _startAyah;
+    var bestTop = double.infinity;
+    for (final entry in _ayahKeys.entries) {
+      final ayahContext = entry.value.currentContext;
+      if (ayahContext == null) continue;
+      final renderObject = ayahContext.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) continue;
+      final top = renderObject.localToGlobal(Offset.zero).dy;
+      if (top + renderObject.size.height > 0 && top < bestTop) {
+        bestTop = top;
+        bestAyah = entry.key;
+      }
+    }
+    return bestAyah;
+  }
+
   Future<void> _persistCurrentPosition() async {
-    // Capture the offset before awaiting preferences: dispose() may release
-    // the ScrollController while this asynchronous write is in progress.
-    final offset = _scrollController.hasClients ? _scrollController.offset : null;
+    // Save the first visible ayah instead of a pixel offset that changes with
+    // font size, screen dimensions, and line wrapping.
+    final currentAyah = _scrollController.hasClients
+        ? _currentVisibleAyah()
+        : _startAyah;
     final fontSize = _fontSize;
     final speed = _speed;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_lastSurahKey, widget.number);
+    await prefs.setInt(_lastAyahKey, currentAyah);
     await prefs.setDouble(_fontSizeKey, fontSize);
     await prefs.setDouble(_speedKey, speed);
-    if (offset != null) {
-      await prefs.setDouble(_positionKey, offset);
-    }
   }
 
   void _scheduleSavePosition() {
@@ -820,26 +842,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     });
   }
 
-  Future<void> _restorePosition() async {
-    if (_restoreDone) return;
-    _restoreDone = true;
-    // Apply the saved font size before calculating the scroll extent.
-    await _preferencesReady;
-    final prefs = await SharedPreferences.getInstance();
-    final saved = widget.restoreLastPosition && widget.initialAyah == 1
-        ? (prefs.getDouble(_positionKey) ?? 0)
-        : 0.0;
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scrollController.hasClients && saved > 0) {
-        _scrollController.jumpTo(
-          saved.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble(),
-        );
-      }
-    });
-  }
-
-  Future<void> _saveReaderSettings() async {
+remove restore  Future<void> _saveReaderSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_fontSizeKey, _fontSize);
     await prefs.setDouble(_speedKey, _speed);
@@ -955,7 +958,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             const Text('حجم خط القرآن', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: green)),
             Row(children: [
               const Icon(Icons.text_decrease, color: green),
-              Expanded(child: Slider(value: _fontSize, min: 20, max: 48, divisions: 14, label: _fontSize.round().toString(), activeColor: green, onChanged: (v) {
+              Expanded(child: Slider(value: _fontSize, min: 8, max: 90, divisions: 82, label: _fontSize.round().toString(), activeColor: green, onChanged: (v) {
                 setState(() => _fontSize = v);
                 refresh(() {});
                 unawaited(_saveReaderSettings());
@@ -1016,10 +1019,13 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
               return Center(child: Text('تعذر تحميل القراءة المتتابعة: ${snapshot.error}'));
             }
             final data = snapshot.data!;
-            _restorePosition();
+            if (!_preferencesLoaded) {
+              return const Center(child: CircularProgressIndicator());
+            }
             final children = <Widget>[
-              for (var i = widget.initialAyah - 1; i < data.ayahs.length; i++)
+              for (var i = _startAyah - 1; i < data.ayahs.length; i++)
                 Padding(
+                  key: _ayahKeys.putIfAbsent(i + 1, () => GlobalKey()),
                   padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
                   child: Text(
                     '${data.ayahs[i]} ﴿${i + 1}﴾',
