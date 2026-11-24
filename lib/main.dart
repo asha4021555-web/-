@@ -771,7 +771,6 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   bool _preferencesLoaded = false;
   final Map<int, GlobalKey> _ayahKeys = <int, GlobalKey>{};
   late Future<_ContinuousReaderData> _data;
-  late Future<void> _preferencesReady;
 
   static const _lastSurahKey = 'quran_kareem_last_surah';
   static const _lastAyahKey = 'quran_kareem_last_ayah';
@@ -784,7 +783,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _data = _loadData();
     _scrollController.addListener(_scheduleSavePosition);
-    _preferencesReady = _loadReaderPreferences();
+    _loadReaderPreferences();
   }
 
   Future<void> _loadReaderPreferences() async {
