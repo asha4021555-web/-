@@ -793,10 +793,10 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     final savedFont = prefs.getDouble(_fontSizeKey) ?? 28;
     final savedSpeed = prefs.getDouble(_speedKey) ?? 140;
     final savedAyah = (prefs.getInt(_lastAyahKey) ?? widget.initialAyah)
-        .clamp(1, quranAyahCounts[widget.number - 1]);
+        .clamp(1, quranAyahCounts[widget.number - 1]).toInt();
     setState(() {
-      _fontSize = savedFont.clamp(8.0, 90.0);
-      _speed = savedSpeed.clamp(45.0, 300.0);
+      _fontSize = savedFont.clamp(8.0, 90.0).toDouble();
+      _speed = savedSpeed.clamp(45.0, 300.0).toDouble();
       _startAyah = widget.restoreLastPosition ? savedAyah : widget.initialAyah;
       _preferencesLoaded = true;
     });
