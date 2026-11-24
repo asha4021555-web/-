@@ -842,7 +842,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
     });
   }
 
-remove restore  Future<void> _saveReaderSettings() async {
+  Future<void> _saveReaderSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_fontSizeKey, _fontSize);
     await prefs.setDouble(_speedKey, _speed);
