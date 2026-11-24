@@ -257,18 +257,39 @@ jobs:
                       views.setTextViewText(viewIds[index], value)
                   }
 
+                  // Select the next prayer from the same local clock times shown in the widget.
+                  // Rebuild today's timestamps from the displayed values to avoid stale/day-offset epoch data.
                   var nextIndex = -1
-                  var nextTime = 0L
-                  for (day in todayIndex..6) {
+                  var nextTime = Long.MAX_VALUE
+                  for (day in 0..6) {
                       for (index in keys.indices) {
-                          val timestamp = (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
-                          if (timestamp > now) {
+                          val timestamp = if (day == 0) {
+                              val display = data.getString("prayer_day_0_${keys[index]}", null)
+                                  ?: data.getString("prayer_${keys[index]}", null)
+                              val match = Regex("""(\\d{1,2}):(\\d{2})\\s*([صم])""").find(display ?: "")
+                              if (match != null) {
+                                  var hour = match.groupValues[1].toInt()
+                                  val minute = match.groupValues[2].toInt()
+                                  val isPm = match.groupValues[3] == "م"
+                                  if (isPm && hour < 12) hour += 12
+                                  if (!isPm && hour == 12) hour = 0
+                                  Calendar.getInstance().apply {
+                                      set(Calendar.HOUR_OF_DAY, hour)
+                                      set(Calendar.MINUTE, minute)
+                                      set(Calendar.SECOND, 0)
+                                      set(Calendar.MILLISECOND, 0)
+                                  }.timeInMillis
+                              } else {
+                                  (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
+                              }
+                          } else {
+                              (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
+                          }
+                          if (timestamp > now && timestamp < nextTime) {
                               nextIndex = index
                               nextTime = timestamp
-                              break
                           }
                       }
-                      if (nextTime > 0L) break
                   }
 
                   val widgetOptions = manager.getAppWidgetOptions(id)
@@ -288,8 +309,9 @@ jobs:
                       views.setTextViewText(R.id.prayer_countdown_label, "المتبقي على صلاة " + names[nextIndex])
                       views.setTextViewTextSize(R.id.prayer_countdown_label, TypedValue.COMPLEX_UNIT_SP, if (expanded) 12f else 8f)
                       views.setTextViewTextSize(R.id.prayer_countdown, TypedValue.COMPLEX_UNIT_SP, if (expanded) 15f else 10f)
-                      views.setChronometer(R.id.prayer_countdown, SystemClock.elapsedRealtime() + (nextTime - now), null, true)
+                      val remainingMillis = (nextTime - System.currentTimeMillis()).coerceAtLeast(0L)
                       views.setChronometerCountDown(R.id.prayer_countdown, true)
+                      views.setChronometer(R.id.prayer_countdown, SystemClock.elapsedRealtime() + remainingMillis, null, true)
                   } else {
                       views.setViewVisibility(R.id.prayer_countdown_label, View.GONE)
                       views.setViewVisibility(R.id.prayer_countdown, View.GONE)
@@ -306,7 +328,7 @@ jobs:
           (res / 'xml').mkdir(parents=True, exist_ok=True)
           (res / 'drawable').mkdir(parents=True, exist_ok=True)
           (res / 'drawable/noor_widget_background.xml').write_text('''<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#FFF9F0"/><corners android:radius="18dp"/><stroke android:width="1dp" android:color="#D8C39A"/></shape>''')
-          (res / 'drawable/noor_widget_background_dark.xml').write_text('''<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#000000"/><corners android:radius="18dp"/><stroke android:width="1dp" android:color="#333333"/></shape>''')
+          (res / 'drawable/noor_widget_background_dark.xml').write_text('''<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#CC34383B"/><corners android:radius="26dp"/><stroke android:width="1dp" android:color="#30FFFFFF"/></shape>''')
           (res / 'layout/noor_prayer_widget.xml').write_text('''<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/prayer_widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="2dp" android:background="@drawable/noor_widget_background_dark"><TextView android:id="@+id/prayer_hijri" android:layout_width="match_parent" android:layout_height="12dp" android:gravity="center" android:text="التاريخ الهجري" android:textColor="#DDDDDD" android:textSize="8sp" android:singleLine="true"/><LinearLayout android:layout_width="match_parent" android:layout_height="32dp" android:orientation="horizontal" android:gravity="center"><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"><TextView android:id="@+id/prayer_fajr_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الفجر" android:textColor="#BBBBBB" android:textSize="9sp"/><TextView android:id="@+id/prayer_fajr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--:--" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"><TextView android:id="@+id/prayer_dhuhr_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الظهر" android:textColor="#BBBBBB" android:textSize="9sp"/><TextView android:id="@+id/prayer_dhuhr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--:--" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"><TextView android:id="@+id/prayer_asr_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="العصر" android:textColor="#BBBBBB" android:textSize="9sp"/><TextView android:id="@+id/prayer_asr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--:--" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"><TextView android:id="@+id/prayer_maghrib_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="المغرب" android:textColor="#BBBBBB" android:textSize="9sp"/><TextView android:id="@+id/prayer_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--:--" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp"/></LinearLayout><LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"><TextView android:id="@+id/prayer_isha_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="العشاء" android:textColor="#BBBBBB" android:textSize="9sp"/><TextView android:id="@+id/prayer_isha" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--:--" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp"/></LinearLayout></LinearLayout><LinearLayout android:id="@+id/prayer_countdown_row" android:layout_width="match_parent" android:layout_height="16dp" android:gravity="center" android:layoutDirection="ltr" android:orientation="horizontal"><TextView android:id="@+id/prayer_countdown_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textDirection="rtl" android:text="المتبقي على الصلاة" android:textColor="#BBBBBB" android:textSize="8sp" android:visibility="gone"/><Chronometer android:id="@+id/prayer_countdown" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="10sp" android:visibility="gone"/></LinearLayout></LinearLayout>''')
 
           (res / 'layout/noor_home_widget.xml').write_text('''<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:padding="12dp" android:background="@drawable/noor_widget_background"><TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="نور الإسلام" android:textColor="#493326" android:textStyle="bold" android:textSize="17sp"/><TextView android:id="@+id/widget_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="5dp" android:text="اضغط للفتح" android:textColor="#665548" android:textSize="12sp"/><TextView android:id="@+id/widget_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:layout_marginTop="4dp" android:text="0" android:textColor="#493326" android:textStyle="bold" android:textSize="22sp" android:visibility="gone"/><Button android:id="@+id/widget_action" android:layout_width="wrap_content" android:layout_height="38dp" android:layout_marginTop="4dp" android:text="سبّح +١" android:visibility="gone"/></LinearLayout>''')
