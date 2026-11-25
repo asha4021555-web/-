@@ -33,6 +33,30 @@ jobs:
         run: flutter create --platforms=android --org com.nooralislam .
 
 
+      - name: Configure Maven Central mirror to avoid rate limits
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          candidates = [Path('android/settings.gradle.kts'), Path('android/settings.gradle')]
+          settings = next((p for p in candidates if p.exists()), None)
+          if settings is None:
+              raise SystemExit('Android settings.gradle was not generated')
+          content = settings.read_text()
+          mirror = 'https://maven-central.storage-download.googleapis.com/maven2'
+          if mirror not in content:
+              if settings.suffix == '.kts':
+                  repository = 'maven { url = uri("' + mirror + '") }'
+              else:
+                  repository = 'maven { url "' + mirror + '" }'
+              content, count = re.subn(r'(repositories\\s*\\{)', r'\\1\\n        ' + repository, content)
+              if count == 0:
+                  raise SystemExit('Could not insert Maven mirror into Android repositories')
+              settings.write_text(content)
+          print('Maven Central mirror configured.')
+          PY
+
       - name: Add Android home screen widgets
         run: |
           python3 - <<'PY'
