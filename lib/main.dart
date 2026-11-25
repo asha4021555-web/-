@@ -1189,7 +1189,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                         ),
                       ),
                     ],
-                  ), ),
+                  ),
+                ),
               )),
               Material(
                 elevation: 10,
@@ -1203,7 +1204,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                       section: 'quran_text_${widget.number}',
                       label: 'سورة ${widget.name} - موضع القراءة الحالي',
                       getPosition: () => _scrollController.hasClients ? _scrollController.offset : 0,
-                      onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(0.0, _scrollController.position.maxScrollExtent).toDouble()); },
+                      onJump: (value) { _stopScrolling(); if (_scrollController.hasClients) _scrollController.jumpTo(value.clamp(_scrollController.position.minScrollExtent, _scrollController.position.maxScrollExtent).toDouble()); },
                     ),
                     IconButton(tooltip: 'حجم الخط', visualDensity: VisualDensity.compact, onPressed: _showFontSettings, icon: Icon(Icons.format_size, color: controlColor, size: 22)),
                     IconButton(tooltip: 'سرعة القراءة', visualDensity: VisualDensity.compact, onPressed: _showSpeedSettings, icon: Icon(Icons.speed, color: controlColor, size: 22)),
