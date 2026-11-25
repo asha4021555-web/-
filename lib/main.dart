@@ -1539,7 +1539,11 @@ class _ContinuousReaderData {
         block.kind == 2 && block.globalIndex == globalIndex);
     if (verseIndex < 0) return 0;
     final ayah = ayahs[globalIndex];
-    if (ayah.number == 1) {\n      final hasQuarter = quarterAt.containsKey(globalIndex);\n      return (verseIndex - (hasQuarter ? 2 : 1)).clamp(0, blocks.length - 1).toInt();\n    }
+    if (ayah.number == 1) {
+      final hasQuarter = quarterAt.containsKey(globalIndex);
+      return (verseIndex - (hasQuarter ? 2 : 1))
+          .clamp(0, blocks.length - 1).toInt();
+    }
     if (quarterAt.containsKey(globalIndex)) return verseIndex - 1;
     return verseIndex;
   }
