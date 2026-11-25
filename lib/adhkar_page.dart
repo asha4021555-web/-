@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'ruqyah_page.dart';
 
 const _green = Color(0xFF493326);
 
@@ -136,16 +135,6 @@ class AdhkarLibraryPage extends StatelessWidget {
               'أذكار وأدعية من القرآن الكريم والسنة النبوية، مرتبة حسب المواقف. راجع مصدر الذكر عند الحاجة، فبعض الأبواب لها أكثر من صيغة صحيحة.',
               style: TextStyle(height: 1.7, color: _green),
             ),
-          ),
-        ),
-        Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: const Icon(Icons.health_and_safety, color: _green, size: 30),
-            title: const Text('الرقية الشرعية كاملة', style: TextStyle(fontWeight: FontWeight.bold, color: _green)),
-            subtitle: const Text('آيات القرآن والأدعية المأثورة'),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RuqyahPage())),
           ),
         ),
         for (final group in _groups)
