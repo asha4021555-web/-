@@ -34,6 +34,7 @@ flutter:
   assets:
     - assets/quran-uthmani.txt
     - assets/quran-pages.json
+    - assets/quran-meta.json
     - assets/hadiths-1000.json
     - assets/QURAN_SOURCE.txt
     - assets/noor_icon.jpg
