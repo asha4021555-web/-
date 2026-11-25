@@ -767,7 +767,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   Timer? _saveTimer;
   double _speed = 140;
   double _fontSize = 28;
-  int _startAyah = 1;
+  int _startGlobalIndex = 0;
   bool _preferencesLoaded = false;
   final Map<int, GlobalKey> _ayahKeys = <int, GlobalKey>{};
   late Future<_ContinuousReaderData> _data;
@@ -788,22 +788,25 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
 
   Future<void> _loadReaderPreferences() async {
     final prefs = await SharedPreferences.getInstance();
+    final data = await _data;
     if (!mounted) return;
     final savedFont = prefs.getDouble(_fontSizeKey) ?? 28;
     final savedSpeed = prefs.getDouble(_speedKey) ?? 140;
     final savedAyah = (prefs.getInt(_lastAyahKey) ?? widget.initialAyah)
         .clamp(1, quranAyahCounts[widget.number - 1]).toInt();
+    final requestedAyah = widget.restoreLastPosition ? savedAyah : widget.initialAyah;
+    final localAyah = requestedAyah.clamp(1, quranAyahCounts[widget.number - 1]).toInt();
+    final startIndex = data.surahStarts[widget.number - 1] + localAyah - 1;
     setState(() {
       _fontSize = savedFont.clamp(8.0, 90.0).toDouble();
       _speed = savedSpeed.clamp(45.0, 300.0).toDouble();
-      _startAyah = widget.restoreLastPosition ? savedAyah : widget.initialAyah;
+      _startGlobalIndex = startIndex;
       _preferencesLoaded = true;
     });
-    await prefs.setInt(_lastSurahKey, widget.number);
   }
 
-  int _currentVisibleAyah() {
-    var bestAyah = _startAyah;
+  int _currentVisibleAyahIndex() {
+    var bestIndex = _startGlobalIndex;
     var bestTop = double.infinity;
     for (final entry in _ayahKeys.entries) {
       final ayahContext = entry.value.currentContext;
@@ -813,23 +816,25 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
       final top = renderObject.localToGlobal(Offset.zero).dy;
       if (top + renderObject.size.height > 0 && top < bestTop) {
         bestTop = top;
-        bestAyah = entry.key;
+        bestIndex = entry.key;
       }
     }
-    return bestAyah;
+    return bestIndex;
   }
 
   Future<void> _persistCurrentPosition() async {
-    // Save the first visible ayah instead of a pixel offset that changes with
-    // font size, screen dimensions, and line wrapping.
-    final currentAyah = _scrollController.hasClients
-        ? _currentVisibleAyah()
-        : _startAyah;
+    // Persist the actual first visible ayah, including its surah, across the
+    // continuous reader rather than only the surah used to open it.
+    final data = await _data;
+    final currentIndex = (_scrollController.hasClients
+        ? _currentVisibleAyahIndex()
+        : _startGlobalIndex).clamp(0, data.ayahs.length - 1).toInt();
+    final current = data.ayahs[currentIndex];
     final fontSize = _fontSize;
     final speed = _speed;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_lastSurahKey, widget.number);
-    await prefs.setInt(_lastAyahKey, currentAyah);
+    await prefs.setInt(_lastSurahKey, current.surah);
+    await prefs.setInt(_lastAyahKey, current.number);
     await prefs.setDouble(_fontSizeKey, fontSize);
     await prefs.setDouble(_speedKey, speed);
   }
@@ -849,15 +854,53 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
 
   Future<_ContinuousReaderData> _loadData() async {
     final rawText = await rootBundle.loadString('assets/quran-uthmani.txt');
-    final allAyahs = rawText.split('\n');
-    if (allAyahs.length != 6236) {
-      throw Exception('ملف القرآن غير مكتمل: ${allAyahs.length} آية');
+    final allText = rawText.split('\n');
+    if (allText.length != 6236) {
+      throw Exception('ملف القرآن غير مكتمل: ${allText.length} آية');
     }
-    final start = quranAyahCounts
-        .take(widget.number - 1)
-        .fold<int>(0, (sum, count) => sum + count);
-    final count = quranAyahCounts[widget.number - 1];
-    return _ContinuousReaderData(allAyahs.skip(start).take(count).toList());
+    final metadata = jsonDecode(await rootBundle.loadString('assets/quran-meta.json'))
+        as Map<String, dynamic>;
+    final surahStarts = (metadata['surahStarts'] as List<dynamic>)
+        .map((value) => (value as num).toInt()).toList();
+    final quarterRecords = metadata['quarters'] as List<dynamic>;
+    if (surahStarts.length != 114 || quarterRecords.length != 240) {
+      throw Exception('بيانات السور والأرباع غير مكتملة');
+    }
+    final quarterAt = <int, int>{};
+    for (final raw in quarterRecords) {
+      final item = raw as Map<String, dynamic>;
+      quarterAt[(item['globalIndex'] as num).toInt()] =
+          (item['number'] as num).toInt();
+    }
+    final ayahs = <_ReaderAyah>[];
+    for (var surahIndex = 0; surahIndex < 114; surahIndex++) {
+      final start = surahStarts[surahIndex];
+      final count = quranAyahCounts[surahIndex];
+      if (start < 0 || start + count > allText.length) {
+        throw Exception('موضع سورة غير صحيح في بيانات المصحف');
+      }
+      for (var local = 0; local < count; local++) {
+        ayahs.add(_ReaderAyah(
+          text: allText[start + local],
+          surah: surahIndex + 1,
+          number: local + 1,
+        ));
+      }
+    }
+    if (ayahs.length != 6236) throw Exception('عدد آيات القرآن غير صحيح');
+    final blocks = <_ReaderBlock>[];
+    for (var globalIndex = 0; globalIndex < ayahs.length; globalIndex++) {
+      final ayah = ayahs[globalIndex];
+      if (ayah.number == 1) {
+        blocks.add(_ReaderBlock.surah(globalIndex, ayah.surah));
+      }
+      final quarter = quarterAt[globalIndex];
+      if (quarter != null) {
+        blocks.add(_ReaderBlock.quarter(globalIndex, ayah.surah, ayah.number, quarter));
+      }
+      blocks.add(_ReaderBlock.ayah(globalIndex, ayah));
+    }
+    return _ContinuousReaderData(ayahs, surahStarts, blocks, quarterAt);
   }
 
   int _scrollRunId = 0;
@@ -1021,27 +1064,8 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             if (!_preferencesLoaded) {
               return const Center(child: CircularProgressIndicator());
             }
-            final children = <Widget>[
-              for (var i = _startAyah - 1; i < data.ayahs.length; i++)
-                Padding(
-                  key: _ayahKeys.putIfAbsent(i + 1, () => GlobalKey()),
-                  padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
-                  child: Text(
-                    '${data.ayahs[i]} ﴿${i + 1}﴾',
-                    textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.justify,
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
-                    textWidthBasis: TextWidthBasis.parent,
-                    style: TextStyle(
-                      fontFamily: 'Amiri',
-                      fontSize: _fontSize,
-                      height: 2.0,
-                      color: readerText,
-                    ),
-                  ),
-                ),
-            ];
+            final startBlock = data.startBlockFor(_startGlobalIndex);
+
             return Column(children: [
               Expanded(child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -1060,10 +1084,98 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   onPointerMove: _readerPointerMove,
                   onPointerUp: _readerPointerUp,
                   onPointerCancel: (_) => _resetReaderPointer(),
-                  child: ListView(
+                  child: ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                    children: children,
+                    itemCount: data.blocks.length - startBlock,
+                    itemBuilder: (context, offset) {
+                      final block = data.blocks[startBlock + offset];
+                      if (block.kind == 0) {
+                        final showBasmala = block.surah != 1 && block.surah != 9;
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 18),
+                          child: Column(
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: darkMode ? const Color(0xFF242424) : const Color(0xFFE8E1D4),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: darkMode ? Colors.white24 : softGold),
+                                ),
+                                child: Text(
+                                  'سُورَةُ ${quranSurahNames[block.surah - 1]}',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'Amiri',
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                    color: readerText,
+                                  ),
+                                ),
+                              ),
+                              if (showBasmala) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'Amiri',
+                                    fontSize: _fontSize.clamp(18.0, 34.0).toDouble(),
+                                    height: 1.8,
+                                    color: const Color(0xFFB3261E),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }
+                      if (block.kind == 1) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: darkMode ? const Color(0xFF2B2B2B) : const Color(0xFFE8E1D4),
+                                border: Border.all(color: darkMode ? Colors.white30 : softGold),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Text(
+                                '۞ الربع ${_arabicDigits(block.quarterNumber!)}',
+                                style: TextStyle(
+                                  fontFamily: 'Amiri',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: readerText,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      final ayah = data.ayahs[block.globalIndex];
+                      return Padding(
+                        key: _ayahKeys.putIfAbsent(block.globalIndex, () => GlobalKey()),
+                        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
+                        child: Text(
+                          '${ayah.text} ﴿${_arabicDigits(ayah.number)}﴾',
+                          textDirection: TextDirection.rtl,
+                          textAlign: TextAlign.justify,
+                          softWrap: true,
+                          overflow: TextOverflow.visible,
+                          textWidthBasis: TextWidthBasis.parent,
+                          style: TextStyle(
+                            fontFamily: 'Amiri',
+                            fontSize: _fontSize,
+                            height: 2.0,
+                            color: readerText,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               )),
@@ -1389,9 +1501,52 @@ class _MushafBookReaderState extends State<MushafBookReader> {
   );
 }
 
+class _ReaderAyah {
+  final String text;
+  final int surah;
+  final int number;
+  const _ReaderAyah({required this.text, required this.surah, required this.number});
+}
+
+class _ReaderBlock {
+  final int kind; // 0 surah header, 1 quarter marker, 2 ayah
+  final int globalIndex;
+  final int surah;
+  final int ayah;
+  final int? quarterNumber;
+  final String text;
+  const _ReaderBlock._(this.kind, this.globalIndex, this.surah, this.ayah,
+      this.quarterNumber, this.text);
+  factory _ReaderBlock.surah(int index, int surah) =>
+      _ReaderBlock._(0, index, surah, 1, null, '');
+  factory _ReaderBlock.quarter(int index, int surah, int ayah, int number) =>
+      _ReaderBlock._(1, index, surah, ayah, number, '');
+  factory _ReaderBlock.ayah(int index, _ReaderAyah ayah) =>
+      _ReaderBlock._(2, index, ayah.surah, ayah.number, null, ayah.text);
+}
+
 class _ContinuousReaderData {
-  final List<String> ayahs;
-  const _ContinuousReaderData(this.ayahs);
+  final List<_ReaderAyah> ayahs;
+  final List<int> surahStarts;
+  final List<_ReaderBlock> blocks;
+  final Map<int, int> quarterAt;
+  const _ContinuousReaderData(this.ayahs, this.surahStarts, this.blocks, this.quarterAt);
+
+  int startBlockFor(int globalIndex) {
+    final verseIndex = blocks.indexWhere((block) =>
+        block.kind == 2 && block.globalIndex == globalIndex);
+    if (verseIndex < 0) return 0;
+    final ayah = ayahs[globalIndex];
+    if (ayah.number == 1) return (verseIndex - 1).clamp(0, blocks.length - 1);
+    if (quarterAt.containsKey(globalIndex)) return verseIndex - 1;
+    return verseIndex;
+  }
+}
+
+String _arabicDigits(int number) {
+  const digits = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  return number.toString().split('').map((digit) =>
+      digit == '-' ? digit : digits[int.parse(digit)]).join();
 }
 
 class Dh{final String t;final int n;const Dh(this.t,this.n);}
