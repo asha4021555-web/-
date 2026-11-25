@@ -290,7 +290,7 @@ class _HomePageState extends State<HomePage> {
         Padding(
           padding:const EdgeInsets.only(bottom:10,top:2),
           child:Column(mainAxisSize:MainAxisSize.min,children:[
-            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:76,height:76,fit:BoxFit.cover)),
+            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:92,height:92,fit:BoxFit.cover)),
             const SizedBox(height:5),
             const Text('نور الإسلام',style:TextStyle(color:green,fontWeight:FontWeight.bold,fontSize:13)),
           ]),
