@@ -241,7 +241,7 @@ class _HomePageState extends State<HomePage> {
           const Text('محتويات نور الإسلام',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:green)),
           const SizedBox(height:8),
           Wrap(spacing:8,runSpacing:8,children:[
-            for(final item in [(0,'القرآن الكريم',Icons.menu_book),(1,'أذكار الصباح والمساء',Icons.wb_twilight),(2,'أذكار بعد الصلاة',Icons.mosque),(3,'الأدعية',Icons.volunteer_activism),(4,'الأحاديث',Icons.auto_stories),(5,'قصص الأنبياء',Icons.history_edu),(6,'أسماء الله الحسنى',Icons.star),(7,'السبحة',Icons.radio_button_checked),(10,'تفسير القرآن الكريم',Icons.menu_book_outlined),(11,'تفسير الأحلام',Icons.nights_stay),(12,'التفسير الميسّر',Icons.menu_book),(13,'البث المباشر',Icons.live_tv),(14,'المصحف المعلم للأطفال',Icons.record_voice_over),(15,'الأذكار والأدعية اليومية',Icons.auto_awesome)])
+            for(final item in [(0,'القرآن الكريم',Icons.menu_book),(1,'أذكار الصباح والمساء',Icons.wb_twilight),(2,'أذكار بعد الصلاة',Icons.mosque),(3,'الأدعية',Icons.volunteer_activism),(4,'الأحاديث',Icons.auto_stories),(5,'قصص الأنبياء',Icons.history_edu),(6,'أسماء الله الحسنى',Icons.star),(7,'السبحة',Icons.radio_button_checked),(10,'تفسير القرآن الكريم',Icons.menu_book_outlined),(11,'تفسير الأحلام',Icons.nights_stay),(12,'التفسير الميسّر',Icons.menu_book),(13,'البث المباشر',Icons.live_tv),(14,'المصحف المعلم للأطفال',Icons.record_voice_over),(15,'الأذكار والأدعية اليومية',Icons.auto_awesome),(16,'الرقية الشرعية',Icons.health_and_safety)])
               ActionChip(avatar:Icon(item.$3,color:green,size:18),label:Text(item.$2),onPressed:()=>_open(SectionPage(index:item.$1),titles[item.$1])),
           ]),
         ]))),
