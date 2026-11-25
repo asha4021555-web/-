@@ -1590,7 +1590,7 @@ String _removeDuplicateBasmala(String text, int surah, int ayah) {
       rune == 0x0640;
   final normalized = String.fromCharCodes(
     trimmed.runes.where((rune) => !isMark(rune)),
-  ).replaceAll(RegExp(r'\\s'), '');
+  ).replaceAll(RegExp(r'\s'), '');
   const basmala = 'بسماللهالرحمنالرحيم';
   if (!normalized.startsWith(basmala)) return text;
   var letters = 0;
