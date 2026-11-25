@@ -884,7 +884,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
       }
       for (var local = 0; local < count; local++) {
         ayahs.add(_ReaderAyah(
-          text: allText[start + local],
+          text: _removeDuplicateBasmala(allText[start + local], surahIndex + 1, local + 1),
           surah: surahIndex + 1,
           number: local + 1,
         ));
@@ -1173,7 +1173,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) => buildReaderBlock(context, index),
+                            (context, index) => buildReaderBlock(context, startBlock - index - 1),
                             childCount: startBlock,
                           ),
                         ),
@@ -1239,7 +1239,7 @@ class _MushafPageReaderState extends State<MushafPageReader>{
   for(final raw in meta){final e=raw as Map<String,dynamic>;final sn=e['sura'] as int;final an=e['aya'] as int;final pn=e['page'] as int;starts['$sn:$an']=pn;if(sn<widget.number||(sn==widget.number&&an<=1))currentPage=pn;}
   final first=QuranPage.surahAyahCounts.take(widget.number-1).fold<int>(0,(a,b)=>a+b);final count=QuranPage.surahAyahCounts[widget.number-1];
   final out=<Map<String,dynamic>>[];var group=<Map<String,dynamic>>[];
-  for(var i=0;i<count;i++){final n=i+1;final p=starts['${widget.number}:$n'];if(p!=null&&p!=currentPage&&group.isNotEmpty){out.add({'page':currentPage,'ayahs':group});group=<Map<String,dynamic>>[];currentPage=p;}group.add({'text':lines[first+i],'number':n});}
+  for(var i=0;i<count;i++){final n=i+1;final p=starts['${widget.number}:$n'];if(p!=null&&p!=currentPage&&group.isNotEmpty){out.add({'page':currentPage,'ayahs':group});group=<Map<String,dynamic>>[];currentPage=p;}group.add({'text':_removeDuplicateBasmala(lines[first+i],widget.number,n),'number':n});}
   if(group.isNotEmpty)out.add({'page':currentPage,'ayahs':group});return out;
  }
  List<InlineSpan> _colorAllah(String text){final out=<InlineSpan>[];final re=RegExp(r'(اللَّهُ|اللَّهِ|اللَّهَ|اللَّه|الله)');var start=0;for(final m in re.allMatches(text)){if(m.start>start)out.add(TextSpan(text:text.substring(start,m.start)));out.add(TextSpan(text:m.group(0),style:const TextStyle(color:Color(0xFFB3261E),fontWeight:FontWeight.w600)));start=m.end;}if(start<text.length)out.add(TextSpan(text:text.substring(start)));return out;}
@@ -1468,17 +1468,35 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 8, offset: Offset(0, 3))],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/mushaf_pages/$pageNumber.png',
-                      fit: BoxFit.contain,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (context, error, stack) => Center(
-                        child: Text('تعذر فتح صورة الصفحة $pageNumber من ملفات التطبيق.', textAlign: TextAlign.center),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/mushaf_pages/$pageNumber.png',
+                            fit: BoxFit.contain,
+                            width: double.infinity,
+                            errorBuilder: (context, error, stack) => Center(
+                              child: Text('تعذر فتح صورة الصفحة $pageNumber من ملفات التطبيق.', textAlign: TextAlign.center),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      SizedBox(
+                        height: 26,
+                        child: Center(
+                          child: Text(
+                            '— ${_arabicDigits(pageNumber)} —',
+                            style: const TextStyle(
+                              color: Color(0xFF665A45),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -1558,6 +1576,33 @@ class _ContinuousReaderData {
     if (quarterAt.containsKey(globalIndex)) return verseIndex - 1;
     return verseIndex;
   }
+}
+
+String _removeDuplicateBasmala(String text, int surah, int ayah) {
+  // Basmala is shown separately below the surah heading in the continuous
+  // reader. Remove it from a first-ayah line only when the source repeats it.
+  if (ayah != 1 || surah == 1 || surah == 9) return text;
+  final trimmed = text.trimLeft();
+  bool isMark(int rune) =>
+      (rune >= 0x064B && rune <= 0x065F) ||
+      rune == 0x0670 ||
+      (rune >= 0x06D6 && rune <= 0x06ED) ||
+      rune == 0x0640;
+  final normalized = String.fromCharCodes(
+    trimmed.runes.where((rune) => !isMark(rune)),
+  ).replaceAll(RegExp(r'\\s'), '');
+  const basmala = 'بسماللهالرحمنالرحيم';
+  if (!normalized.startsWith(basmala)) return text;
+  var letters = 0;
+  var cut = 0;
+  for (final rune in trimmed.runes) {
+    cut += rune > 0xFFFF ? 2 : 1;
+    if (!isMark(rune) && rune != 0x20 && rune != 0x09 && rune != 0x0A && rune != 0x0D) {
+      letters++;
+    }
+    if (letters == basmala.runes.length) break;
+  }
+  return trimmed.substring(cut).trimLeft();
 }
 
 String _arabicDigits(int number) {
