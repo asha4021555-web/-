@@ -436,6 +436,57 @@ jobs:
           print('Verified bundled Quran:', len(lines), 'ayahs')
           PY
 
+      - name: Bundle verified Quran surah and quarter markers
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/myquranapp/quran-data/master/quran-data.xml \
+            --output /tmp/quran-data.xml
+          python3 - <<'PY'
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          root = ET.parse('/tmp/quran-data.xml').getroot()
+          suras = root.find('suras')
+          hizbs = root.find('hizbs')
+          if suras is None or hizbs is None:
+              raise SystemExit('Tanzil metadata is missing suras or hizbs')
+          sura_nodes = suras.findall('sura')
+          quarter_nodes = hizbs.findall('quarter')
+          if len(sura_nodes) != 114 or len(quarter_nodes) != 240:
+              raise SystemExit(f'Unexpected Quran metadata counts: {len(sura_nodes)} surahs, {len(quarter_nodes)} quarters')
+
+          surah_starts = []
+          running = 0
+          for expected, node in enumerate(sura_nodes, start=1):
+              number = int(node.attrib['index'])
+              count = int(node.attrib['ayas'])
+              start = int(node.attrib['start'])
+              if number != expected or start != running:
+                  raise SystemExit(f'Invalid surah metadata at surah {expected}')
+              surah_starts.append(start)
+              running += count
+          if running != 6236:
+              raise SystemExit(f'Expected 6236 ayahs, got {running}')
+
+          quarters = []
+          for expected, node in enumerate(quarter_nodes, start=1):
+              number = int(node.attrib['index'])
+              surah = int(node.attrib['sura'])
+              ayah = int(node.attrib['aya'])
+              if number != expected or not 1 <= surah <= 114 or not 1 <= ayah <= int(sura_nodes[surah-1].attrib['ayas']):
+                  raise SystemExit(f'Invalid quarter marker {expected}')
+              global_index = surah_starts[surah-1] + ayah - 1
+              quarters.append({'number': number, 'surah': surah, 'ayah': ayah, 'globalIndex': global_index})
+          if quarters[0]['globalIndex'] != 0 or any(a['globalIndex'] >= b['globalIndex'] for a,b in zip(quarters, quarters[1:])):
+              raise SystemExit('Quarter markers are not strictly ordered from 1:1')
+
+          output = {'surahStarts': surah_starts, 'quarters': quarters}
+          Path('assets/quran-meta.json').write_text(json.dumps(output, ensure_ascii=False), encoding='utf-8')
+          print('Verified Tanzil metadata: 114 surahs and 240 rub al-hizb markers')
+          PY
+
       - name: Configure Android permissions for prayer reminders
         run: |
           python3 - <<'PY'
