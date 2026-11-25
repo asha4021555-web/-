@@ -824,6 +824,7 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   }
 
   Future<void> _persistCurrentPosition() async {
+    if (!_preferencesLoaded) return;
     // Persist the actual first visible ayah, including its surah, across the
     // continuous reader rather than only the surah used to open it.
     final data = await _data;
@@ -1538,7 +1539,7 @@ class _ContinuousReaderData {
         block.kind == 2 && block.globalIndex == globalIndex);
     if (verseIndex < 0) return 0;
     final ayah = ayahs[globalIndex];
-    if (ayah.number == 1) {\n      final hasQuarter = quarterAt.containsKey(globalIndex);\n      return (verseIndex - (hasQuarter ? 2 : 1)).clamp(0, blocks.length - 1);\n    }
+    if (ayah.number == 1) {\n      final hasQuarter = quarterAt.containsKey(globalIndex);\n      return (verseIndex - (hasQuarter ? 2 : 1)).clamp(0, blocks.length - 1).toInt();\n    }
     if (quarterAt.containsKey(globalIndex)) return verseIndex - 1;
     return verseIndex;
   }
