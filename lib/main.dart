@@ -724,6 +724,7 @@ class ContinuousQuranReader extends StatefulWidget {
 
 class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
   final ScrollController _scrollController = ScrollController();
+  final Key _readerCenterKey = const ValueKey('quran-reader-center');
   bool _scrolling = false;
   bool _autoRequested = false;
   bool _autoPaused = false;
@@ -1068,6 +1069,83 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
             }
             final startBlock = data.startBlockFor(_startGlobalIndex);
 
+            Widget buildReaderBlock(BuildContext context, int absoluteIndex) {
+              final block = data.blocks[absoluteIndex];
+              if (block.kind == 0) {
+                final showBasmala = block.surah != 1 && block.surah != 9;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 16, 4, 18),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: darkMode ? const Color(0xFF242424) : const Color(0xFFE8E1D4),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: darkMode ? Colors.white24 : softGold),
+                        ),
+                        child: Text(
+                          'سُورَةُ ${quranSurahNames[block.surah - 1]}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontFamily: 'Amiri', fontSize: 26,
+                              fontWeight: FontWeight.bold, color: readerText),
+                        ),
+                      ),
+                      if (showBasmala) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Amiri',
+                            fontSize: _fontSize.clamp(18.0, 34.0).toDouble(),
+                            height: 1.8,
+                            color: const Color(0xFFB3261E),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }
+              if (block.kind == 1) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: darkMode ? const Color(0xFF2B2B2B) : const Color(0xFFE8E1D4),
+                        border: Border.all(color: darkMode ? Colors.white30 : softGold),
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Text(
+                        '۞ الربع ${_arabicDigits(block.quarterNumber!)}',
+                        style: TextStyle(fontFamily: 'Amiri', fontSize: 18,
+                            fontWeight: FontWeight.bold, color: readerText),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final ayah = data.ayahs[block.globalIndex];
+              return Padding(
+                key: _ayahKeys.putIfAbsent(block.globalIndex, () => GlobalKey()),
+                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
+                child: Text(
+                  '${ayah.text} ﴿${_arabicDigits(ayah.number)}﴾',
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.justify,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  textWidthBasis: TextWidthBasis.parent,
+                  style: TextStyle(fontFamily: 'Amiri', fontSize: _fontSize,
+                      height: 2.0, color: readerText),
+                ),
+              );
+            }
+
             return Column(children: [
               Expanded(child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -1086,100 +1164,32 @@ class _ContinuousQuranReaderState extends State<ContinuousQuranReader> {
                   onPointerMove: _readerPointerMove,
                   onPointerUp: _readerPointerUp,
                   onPointerCancel: (_) => _resetReaderPointer(),
-                  child: ListView.builder(
+                  child: CustomScrollView(
                     controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                    itemCount: data.blocks.length - startBlock,
-                    itemBuilder: (context, offset) {
-                      final block = data.blocks[startBlock + offset];
-                      if (block.kind == 0) {
-                        final showBasmala = block.surah != 1 && block.surah != 9;
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 18),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                                decoration: BoxDecoration(
-                                  color: darkMode ? const Color(0xFF242424) : const Color(0xFFE8E1D4),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: darkMode ? Colors.white24 : softGold),
-                                ),
-                                child: Text(
-                                  'سُورَةُ ${quranSurahNames[block.surah - 1]}',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Amiri',
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.bold,
-                                    color: readerText,
-                                  ),
-                                ),
-                              ),
-                              if (showBasmala) ...[
-                                const SizedBox(height: 12),
-                                Text(
-                                  'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'Amiri',
-                                    fontSize: _fontSize.clamp(18.0, 34.0).toDouble(),
-                                    height: 1.8,
-                                    color: const Color(0xFFB3261E),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      }
-                      if (block.kind == 1) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: darkMode ? const Color(0xFF2B2B2B) : const Color(0xFFE8E1D4),
-                                border: Border.all(color: darkMode ? Colors.white30 : softGold),
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              child: Text(
-                                '۞ الربع ${_arabicDigits(block.quarterNumber!)}',
-                                style: TextStyle(
-                                  fontFamily: 'Amiri',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: readerText,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-                      final ayah = data.ayahs[block.globalIndex];
-                      return Padding(
-                        key: _ayahKeys.putIfAbsent(block.globalIndex, () => GlobalKey()),
-                        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 5),
-                        child: Text(
-                          '${ayah.text} ﴿${_arabicDigits(ayah.number)}﴾',
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.justify,
-                          softWrap: true,
-                          overflow: TextOverflow.visible,
-                          textWidthBasis: TextWidthBasis.parent,
-                          style: TextStyle(
-                            fontFamily: 'Amiri',
-                            fontSize: _fontSize,
-                            height: 2.0,
-                            color: readerText,
+                    center: _readerCenterKey,
+                    slivers: [
+                      SliverPadding(
+                        key: const ValueKey('quran-reader-before'),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) => buildReaderBlock(context, index),
+                            childCount: startBlock,
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                      SliverPadding(
+                        key: _readerCenterKey,
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, offset) => buildReaderBlock(context, startBlock + offset),
+                            childCount: data.blocks.length - startBlock,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ), ),
               )),
               Material(
                 elevation: 10,
