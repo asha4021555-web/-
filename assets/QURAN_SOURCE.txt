@@ -15,3 +15,5 @@ The bundled text file is sourced from the April 2017 Tanzil Uthmani copy mirrore
 https://github.com/nurekella/namaz-times-kz/blob/main/quran/ar.txt
 The mirror's build script identifies the Arabic source as Tanzil Uthmani, verbatim:
 https://github.com/nurekella/namaz-times-kz/blob/main/tools/quran.mjs
+QURAN STRUCTURAL METADATA (surah starts and rub al-hizb markers):
+Tanzil quran-data.xml, CC BY 3.0. Source: https://tanzil.net/res/text/metadata/quran-data.xml
