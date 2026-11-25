@@ -14,6 +14,7 @@ import 'tafsir_page.dart';
 import 'dreams_page.dart';
 import 'media_pages.dart';
 import 'adhkar_page.dart';
+import 'ruqyah_page.dart';
 final ValueNotifier<int> hijriOffsetChanged=ValueNotifier(0);
 final ValueNotifier<ThemeMode> appThemeMode = ValueNotifier(ThemeMode.light);
 
@@ -28,8 +29,8 @@ const green=Color(0xFF493326);
 const gold=Color(0xFFE8C77B);
 const softGold=Color(0xFFE8D4A7);
 const ivory=Color(0xFFF5F0E6);
-const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر','البث المباشر','المصحف المعلم للأطفال','الأذكار والأدعية اليومية'];
-const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book,Icons.live_tv,Icons.record_voice_over,Icons.auto_awesome];
+const titles=['القرآن الكريم','أذكار الصباح والمساء','أذكار بعد الصلاة','الأدعية','الأحاديث النبوية','قصص الأنبياء','أسماء الله الحسنى','السبحة الإلكترونية','مواقيت الصلاة','اتجاه القبلة','تفسير القرآن الكريم','تفسير الأحلام','التفسير الميسّر','البث المباشر','المصحف المعلم للأطفال','الأذكار والأدعية اليومية','الرقية الشرعية'];
+const icons=[Icons.menu_book,Icons.wb_twilight,Icons.mosque,Icons.volunteer_activism,Icons.auto_stories,Icons.history_edu,Icons.star,Icons.radio_button_checked,Icons.access_time,Icons.explore,Icons.menu_book_outlined,Icons.nights_stay,Icons.menu_book,Icons.live_tv,Icons.record_voice_over,Icons.auto_awesome,Icons.health_and_safety];
 class NoorApp extends StatelessWidget {
   final Uri? initialWidgetUri;
   const NoorApp({super.key, this.initialWidgetUri});
@@ -469,7 +470,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
     ]),
   ])));
 }
-class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const StoriesPage(),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),13=>const LiveChannelsPage(),14=>const AbdulbasitMuallimPage(),15=>const AdhkarLibraryPage(),_=>const DreamsPage()}));}
+class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const StoriesPage(),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),13=>const LiveChannelsPage(),14=>const AbdulbasitMuallimPage(),15=>const AdhkarLibraryPage(),16=>const RuqyahPage(),_=>const DreamsPage()}));}
 class QuranPage extends StatelessWidget {
   const QuranPage({super.key});
   static const surahs = quranSurahNames;
@@ -1537,7 +1538,7 @@ class _ContinuousReaderData {
         block.kind == 2 && block.globalIndex == globalIndex);
     if (verseIndex < 0) return 0;
     final ayah = ayahs[globalIndex];
-    if (ayah.number == 1) return (verseIndex - 1).clamp(0, blocks.length - 1);
+    if (ayah.number == 1) {\n      final hasQuarter = quarterAt.containsKey(globalIndex);\n      return (verseIndex - (hasQuarter ? 2 : 1)).clamp(0, blocks.length - 1);\n    }
     if (quarterAt.containsKey(globalIndex)) return verseIndex - 1;
     return verseIndex;
   }
