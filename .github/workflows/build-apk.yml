@@ -50,7 +50,7 @@ jobs:
                   repository = 'maven { url = uri("' + mirror + '") }'
               else:
                   repository = 'maven { url "' + mirror + '" }'
-              content, count = re.subn(r'(repositories\\s*\\{)', r'\\1\\n        ' + repository, content)
+              content, count = re.subn(r'(repositories\s*\{)', r'\1\n        ' + repository, content)
               if count == 0:
                   raise SystemExit('Could not insert Maven mirror into Android repositories')
               settings.write_text(content)
