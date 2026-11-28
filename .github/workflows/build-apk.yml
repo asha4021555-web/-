@@ -220,10 +220,15 @@ jobs:
 
           (source / 'PrayerTimesWidgetProvider.kt').write_text('''package __PACKAGE__
 
-          import android.appwidget.AppWidgetManager          import android.appwidget.AppWidgetProvider
+          import android.app.AlarmManager
+          import android.app.PendingIntent
+          import android.appwidget.AppWidgetManager
+          import android.appwidget.AppWidgetProvider
           import android.content.Context
+          import android.content.Intent
           import android.graphics.Color
           import android.net.Uri
+          import android.os.Build
           import android.os.SystemClock
           import android.view.View
           import android.util.TypedValue
@@ -233,6 +238,28 @@ jobs:
           import java.util.Calendar
 
           class PrayerTimesWidgetProvider : AppWidgetProvider() {
+              companion object { const val ACTION_PRAYER_BOUNDARY = "__PACKAGE__.PRAYER_BOUNDARY_UPDATE" }
+
+              override fun onReceive(context: Context, intent: Intent) {
+                  super.onReceive(context, intent)
+                  if (intent.action == ACTION_PRAYER_BOUNDARY) {
+                      val manager = AppWidgetManager.getInstance(context)
+                      val ids = manager.getAppWidgetIds(android.content.ComponentName(context, PrayerTimesWidgetProvider::class.java))
+                      ids.forEach { render(context, manager, it) }
+                  }
+              }
+
+              private fun scheduleBoundaryUpdate(context: Context, atMillis: Long) {
+                  val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                  val intent = Intent(context, PrayerTimesWidgetProvider::class.java).setAction(ACTION_PRAYER_BOUNDARY)
+                  val pending = PendingIntent.getBroadcast(context, 5199, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                      alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
+                  } else {
+                      alarm.setExact(AlarmManager.RTC_WAKEUP, atMillis, pending)
+                  }
+              }
+
               private val keys = listOf("fajr", "dhuhr", "asr", "maghrib", "isha")
               private val names = listOf("الفجر", "الظهر", "العصر", "المغرب", "العشاء")
               private val viewIds = listOf(R.id.prayer_fajr, R.id.prayer_dhuhr, R.id.prayer_asr, R.id.prayer_maghrib, R.id.prayer_isha)
@@ -301,6 +328,8 @@ jobs:
                           }
                       }
                   }
+
+                  if (nextTime > now && nextIndex >= 0) scheduleBoundaryUpdate(context, nextTime)
 
                   val widgetOptions = manager.getAppWidgetOptions(id)
                   val expanded = widgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 64) >= 78
