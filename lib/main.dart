@@ -234,7 +234,9 @@ class _HomePageState extends State<HomePage> {
           Text('أهلاً بك في نور الإسلام',style:TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.bold)),
           SizedBox(height:6),Text('رفيقك للقرآن والذكر والعبادة',style:TextStyle(color:Colors.white70)),
         ])),
-        const SizedBox(height:14),
+        const SizedBox(height:12),
+        const HijriDateFooter(),
+        const SizedBox(height:12),
         const PrayerHomeSummary(),
         const SizedBox(height:14),
         Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -245,8 +247,6 @@ class _HomePageState extends State<HomePage> {
               ActionChip(avatar:Icon(item.$3,color:green,size:18),label:Text(item.$2),onPressed:()=>_open(SectionPage(index:item.$1),titles[item.$1])),
           ]),
         ]))),
-        const SizedBox(height:12),
-        const HijriDateFooter(),
       ]),
       Column(children:[
         Expanded(child:ListView(padding:const EdgeInsets.fromLTRB(16,16,16,10),children:[
@@ -290,7 +290,7 @@ class _HomePageState extends State<HomePage> {
         Padding(
           padding:const EdgeInsets.only(bottom:10,top:2),
           child:Column(mainAxisSize:MainAxisSize.min,children:[
-            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:92,height:92,fit:BoxFit.cover)),
+            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:132,height:132,fit:BoxFit.contain,filterQuality:FilterQuality.high,isAntiAlias:true)),
             const SizedBox(height:5),
             const Text('نور الإسلام',style:TextStyle(color:green,fontWeight:FontWeight.bold,fontSize:13)),
           ]),
