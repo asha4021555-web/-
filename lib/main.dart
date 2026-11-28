@@ -197,7 +197,7 @@ class _HomePageState extends State<HomePage> {
           _open(SectionPage(index: 7), titles[7]);
           break;
         case 'prayer-times':
-          _openQuranKareemAtLastPosition();
+          _open(const SectionPage(index: 8), titles[8]);
           break;
       }
     });
