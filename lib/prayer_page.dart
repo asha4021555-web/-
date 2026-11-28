@@ -182,7 +182,7 @@ Future<void> _syncPrayerTimesWidget(Coordinates coordinates, String methodKey) a
   } catch (_) { }
 }
 
-Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath, double adhanVolume) async {
+Future<void> _scheduleAlerts(Coordinates c, Map<String,int> iqamaDelays, String methodKey, String? selectedAudioPath, String? selectedIqamaAudioPath, double adhanVolume, double iqamaVolume, bool autoSilent, int silentBefore, int silentAfter) async {
   await _initAlerts();
   await _notifier.cancelAll();
   const details = NotificationDetails(android: AndroidNotificationDetails(
@@ -195,13 +195,23 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
   const names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
   final adhanTimes = <int>[];
   final iqamaTimes = <int>[];
+  final silentStartTimes = <int>[];
+  final silentRestoreTimes = <int>[];
   for (var day = 0; day < 7; day++) {
     final date = DateTime(now.year, now.month, now.day + day);
     for (var i = 0; i < prayers.length; i++) {
       final at = _getTime(c, date, prayers[i], methodKey);
       if (at.isAfter(now)) adhanTimes.add(at.millisecondsSinceEpoch);
-      final iqamaAt = at.add(Duration(minutes: iqama));
+      final prayerKey = ['fajr','dhuhr','asr','maghrib','isha'][i];
+      final delay = iqamaDelays[prayerKey] ?? (i == 3 ? 5 : 10);
+      final iqamaAt = at.add(Duration(minutes: delay));
       if (iqamaAt.isAfter(now)) iqamaTimes.add(iqamaAt.millisecondsSinceEpoch);
+      if (autoSilent) {
+        final silentAt = iqamaAt.subtract(Duration(minutes: silentBefore));
+        final restoreAt = iqamaAt.add(Duration(minutes: silentAfter));
+        if (silentAt.isAfter(now)) silentStartTimes.add(silentAt.millisecondsSinceEpoch);
+        if (restoreAt.isAfter(now)) silentRestoreTimes.add(restoreAt.millisecondsSinceEpoch);
+      }
       final events = [at.subtract(const Duration(minutes: 10)), at, iqamaAt];
       final labels = ['باقي 10 دقائق على صلاة ' + names[i], 'حان الآن وقت صلاة ' + names[i], 'موعد الإقامة لصلاة ' + names[i]];
       for (var kind = 0; kind < events.length; kind++) {
@@ -223,6 +233,11 @@ Future<void> _scheduleAlerts(Coordinates c, int iqama, String methodKey, String?
     'volume': adhanVolume,
     'iqamaTimes': iqamaTimes,
     'iqamaAudioPath': selectedIqamaAudioPath,
+    'iqamaVolume': iqamaVolume,
+  }).catchError((_) {});
+  await _adhanChannel.invokeMethod('scheduleSilence', {
+    'starts': silentStartTimes,
+    'restores': silentRestoreTimes,
   }).catchError((_) {});
 }
 
@@ -312,15 +327,20 @@ class _PrayerPageState extends State<PrayerPage> {
   String methodKey='egyptian';
   String? error;
   bool loading=false,alerts=false;
-  int iqama=10;
-  final TextEditingController iqamaController=TextEditingController(text:'10');
+  final Map<String,int> iqamaDelays={'fajr':10,'dhuhr':10,'asr':10,'maghrib':5,'isha':10};
+  final Map<String,TextEditingController> iqamaControllers={};
+  bool autoSilent=false;
+  int silentBefore=2;
+  int silentAfter=30;
+  bool hasNotificationPolicyAccess=false;
+  double iqamaVolume=1.0;
   String? audioPath;
   String? iqamaAudioPath;
   double adhanVolume=1.0;
   bool downloadingHaram=false;
   final AudioPlayer audioPlayer=AudioPlayer();
 
-  @override void initState(){super.initState();_loadSettings();}
+  @override void initState(){super.initState();for(final key in ['fajr','dhuhr','asr','maghrib','isha']){iqamaControllers[key]=TextEditingController(text:iqamaDelays[key].toString());}_loadSettings();}
   Future<void> _loadSettings() async {
     final prefs=await SharedPreferences.getInstance();
     if(!mounted)return;
@@ -330,8 +350,11 @@ class _PrayerPageState extends State<PrayerPage> {
       cityName=prefs.getString('prayer_city')??'الموقع الحالي';
       methodKey=prefs.getString('calculation_method')??'egyptian';
       alerts=prefs.getBool('prayer_alerts')??false;
-      iqama=prefs.getInt('iqama_delay')??10;
-      iqamaController.text=iqama.toString();
+      for(final key in iqamaDelays.keys){iqamaDelays[key]=prefs.getInt('iqama_delay_$key')??(key=='maghrib'?5:10);iqamaControllers[key]!.text=iqamaDelays[key].toString();}
+      autoSilent=prefs.getBool('prayer_auto_silent')??false;
+      silentBefore=prefs.getInt('prayer_silent_before')??2;
+      silentAfter=prefs.getInt('prayer_silent_after')??30;
+      iqamaVolume=(prefs.getDouble('iqama_volume')??1.0).clamp(0.0,1.0).toDouble();
       adhanVolume=(prefs.getDouble('adhan_volume')??1.0).clamp(0.0,1.0).toDouble();
       final savedAudio=prefs.getString('adhan_audio_path');
       final isOldHaramAdhan = savedAudio != null && savedAudio.endsWith('adhan_ali_ibn_ahmad_mala.mp3');
@@ -342,6 +365,7 @@ class _PrayerPageState extends State<PrayerPage> {
       final savedIqamaAudio=prefs.getString('iqama_audio_path');
       iqamaAudioPath=savedIqamaAudio!=null && File(savedIqamaAudio).existsSync() ? savedIqamaAudio : null;
     });
+    try{hasNotificationPolicyAccess=await _adhanChannel.invokeMethod<bool>('hasNotificationPolicyAccess')??false;}catch(_){}
     if (coordinates == null) {
       await _locate();
     }
@@ -516,7 +540,7 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _refresh() async {
     final c=coordinates;
     if(c==null)return;
-    await _scheduleAlerts(c,iqama,methodKey,audioPath,iqamaAudioPath,adhanVolume);
+    await _scheduleAlerts(c,iqamaDelays,methodKey,audioPath,iqamaAudioPath,adhanVolume,iqamaVolume,autoSilent,silentBefore,silentAfter);
   }
   Future<void> _toggle(bool value) async {
     if(value&&coordinates==null){await _locate();if(coordinates==null)return;}
@@ -548,13 +572,44 @@ class _PrayerPageState extends State<PrayerPage> {
       _msg('تعذر إيقاف الأذان: '+e.toString());
     }
   }
-  Future<void> _setIqama(int? v) async {
-    if(v==null)return;
-    setState(()=>iqama=v);
-    iqamaController.text=v.toString();
+  Future<void> _setIqamaDelay(String key,int value) async {
+    if(value<0||value>180)return;
     final prefs=await SharedPreferences.getInstance();
-    await prefs.setInt('iqama_delay',v);
+    await prefs.setInt('iqama_delay_$key',value);
+    if(!mounted)return;
+    setState(()=>iqamaDelays[key]=value);
+    iqamaControllers[key]!.text=value.toString();
     if(alerts)await _refresh();
+  }
+  Future<void> _setAutoSilent(bool value) async {
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setBool('prayer_auto_silent',value);
+    if(!mounted)return;
+    setState(()=>autoSilent=value);
+    if(alerts)await _refresh();
+  }
+  Future<void> _setSilentTiming({int? before,int? after}) async {
+    final prefs=await SharedPreferences.getInstance();
+    if(before!=null){silentBefore=before;await prefs.setInt('prayer_silent_before',before);}
+    if(after!=null){silentAfter=after;await prefs.setInt('prayer_silent_after',after);}
+    if(mounted)setState((){});
+    if(alerts)await _refresh();
+  }
+  Future<void> _setIqamaVolume(double value) async {
+    iqamaVolume=value.clamp(0.0,1.0).toDouble();
+    final prefs=await SharedPreferences.getInstance();
+    await prefs.setDouble('iqama_volume',iqamaVolume);
+    if(mounted)setState((){});
+    if(alerts)await _refresh();
+  }
+  Future<void> _requestSilentPermission() async {
+    try{
+      await _adhanChannel.invokeMethod('requestNotificationPolicyAccess');
+      final granted=await _adhanChannel.invokeMethod<bool>('hasNotificationPolicyAccess')??false;
+      if(mounted)setState(()=>hasNotificationPolicyAccess=granted);
+      if(granted&&alerts&&autoSilent)await _refresh();
+      if(mounted)_msg(granted?'تم منح صلاحية التحكم في وضع الصامت.':'افتح صفحة صلاحية عدم الإزعاج وفعّل السماح لتطبيق نور الإسلام.');
+    }catch(e){if(mounted)_msg('تعذر فتح إعداد الصلاحية: $e');}
   }
   Future<void> _chooseAdhan() async {
     final result=await FilePicker.pickFile(type:FileType.audio);
@@ -670,7 +725,7 @@ class _PrayerPageState extends State<PrayerPage> {
     _msg('تم إلغاء صوت الإقامة المخصص.');
   }
   void _msg(String s){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));}
-  @override void dispose(){iqamaController.dispose();audioPlayer.dispose();super.dispose();}
+  @override void dispose(){for(final c in iqamaControllers.values){c.dispose();}audioPlayer.dispose();super.dispose();}
 
   @override Widget build(BuildContext context){
     final today=DateTime.now();
@@ -689,7 +744,7 @@ class _PrayerPageState extends State<PrayerPage> {
       'singapore':'سنغافورة',
       'turkey':'الشؤون الدينية التركية',
     };
-    final iqamaOptions=<int>{5,10,15,20,25,30,iqama}.toList()..sort();
+    final iqamaOptions=<int>{0,1,2,3,5,10,15,20,30,iqamaDelays.values.reduce((a,b)=>a>b?a:b)}.where((v)=>v>=0&&v<=180).toList()..sort();
     return ListView(padding:const EdgeInsets.all(16),children:[
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('الموقع وطريقة حساب المواقيت',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
@@ -729,11 +784,23 @@ class _PrayerPageState extends State<PrayerPage> {
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('تنبيهات الصلاة',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
-        SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('تفعيل التنبيهات'),subtitle:const Text('قبل الصلاة بـ10 دقائق، وعند دخول الوقت، ثم الإقامة'),value:alerts,onChanged:_toggle),
-        Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-          Row(children:[const Expanded(child:Text('الإقامة بعد الأذان')),DropdownButton<int>(value:iqama,items:iqamaOptions.map((v)=>DropdownMenuItem(value:v,child:Text(v.toString()+' دقائق'))).toList(),onChanged:_setIqama)]),
-          TextField(controller:iqamaController,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أو اكتب مدة الإقامة بالدقائق (1-180)'),onChanged:(value){final n=int.tryParse(value);if(n!=null&&n>=1&&n<=180)setState(()=>iqama=n);},onSubmitted:(value)=>_setIqama(int.tryParse(value))),
-        ]),
+        SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('تفعيل التنبيهات'),subtitle:const Text('تنبيه قبل الصلاة بـ10 دقائق، وعند دخول الوقت، ثم الإقامة حسب مدة كل صلاة'),value:alerts,onChanged:_toggle),
+        const Text('مدة الإقامة بعد الأذان لكل صلاة',style:TextStyle(fontWeight:FontWeight.bold)),
+        for(final entry in const [('fajr','الفجر'),('dhuhr','الظهر'),('asr','العصر'),('maghrib','المغرب'),('isha','العشاء')])
+          Padding(padding:const EdgeInsets.only(top:6),child:Row(children:[
+            SizedBox(width:54,child:Text(entry.$2)),
+            DropdownButton<int>(value:iqamaOptions.contains(iqamaDelays[entry.$1])?iqamaDelays[entry.$1]:iqamaOptions.first,items:iqamaOptions.map((v)=>DropdownMenuItem(value:v,child:Text('$v د'))).toList(),onChanged:(v){if(v!=null)_setIqamaDelay(entry.$1,v);}),
+            const SizedBox(width:8),
+            Expanded(child:SizedBox(height:48,child:TextField(controller:iqamaControllers[entry.$1],keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أو اكتب بالدقائق',isDense:true),onSubmitted:(v){final n=int.tryParse(v);if(n!=null)_setIqamaDelay(entry.$1,n);}))),
+          ])),
+        const Divider(height:24),
+        SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('تحويل الهاتف إلى صامت قبل الإقامة'),subtitle:const Text('يُعاد وضع الصوت السابق تلقائيًا بعد انتهاء المدة المحددة.'),value:autoSilent,onChanged:_setAutoSilent),
+        if(autoSilent) ...[
+          Row(children:[const Expanded(child:Text('الصامت قبل الإقامة')),DropdownButton<int>(value:silentBefore,items:[1,2,3,5].map((v)=>DropdownMenuItem(value:v,child:Text('$v دقيقة'))).toList(),onChanged:(v)=>v==null?null:_setSilentTiming(before:v))]),
+          Row(children:[const Expanded(child:Text('إعادة الصوت بعد الإقامة')),DropdownButton<int>(value:silentAfter,items:[15,20,30,45,60,90].map((v)=>DropdownMenuItem(value:v,child:Text('$v دقيقة'))).toList(),onChanged:(v)=>v==null?null:_setSilentTiming(after:v))]),
+          Text(hasNotificationPolicyAccess?'صلاحية وضع الصامت مفعّلة':'يلزم السماح للتطبيق بالتحكم في وضع عدم الإزعاج.' ,style:TextStyle(fontSize:12,color:hasNotificationPolicyAccess?_green:Colors.deepOrange)),
+          OutlinedButton.icon(onPressed:_requestSilentPermission,icon:const Icon(Icons.notifications_off_outlined),label:Text(hasNotificationPolicyAccess?'إدارة صلاحية الصامت':'منح صلاحية وضع الصامت')),
+        ],
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت الأذان',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
@@ -760,13 +827,15 @@ class _PrayerPageState extends State<PrayerPage> {
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت إقامة الصلاة',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),
+        Row(children:[const Expanded(child:Text('مستوى صوت الإقامة')),Text('${(iqamaVolume*100).round()}%',style:const TextStyle(fontWeight:FontWeight.bold,color:_green))]),
+        Slider(value:iqamaVolume.clamp(0.0,1.0).toDouble(),min:0,max:1,divisions:20,label:'${(iqamaVolume*100).round()}%',onChanged:(v)=>setState(()=>iqamaVolume=v),onChangeEnd:_setIqamaVolume),
         Text(iqamaAudioPath==null?'سيُستخدم صوت إشعار الهاتف عند موعد الإقامة':'تم اختيار ملف إقامة من الهاتف'),
         Wrap(spacing:8,runSpacing:8,children:[
           OutlinedButton.icon(onPressed:_chooseIqamaAudio,icon:const Icon(Icons.audio_file),label:const Text('اختيار ملف الإقامة من الهاتف')),
           FilledButton.tonalIcon(onPressed:iqamaAudioPath==null?null:_previewIqamaAudio,icon:const Icon(Icons.play_arrow),label:const Text('تجربة صوت الإقامة')),
           TextButton(onPressed:iqamaAudioPath==null?null:_clearIqamaAudio,child:const Text('إلغاء الصوت المخصص')),
         ]),
-        const Text('اختر ملف إقامة الصلاة بصيغة صوتية من هاتفك. سيُحفظ داخل التطبيق ويُشغّل في موعد الإقامة المحدد بعد الأذان.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
+        const Text('اختر ملف إقامة الصلاة من هاتفك واضبط مستوى صوته من الشريط. أزرار الصوت الجانبية أثناء تشغيل الصوت تتحكم في مستوى صوت المنبّه حسب إعدادات أندرويد؛ لا يستطيع التطبيق تغيير وظيفة الأزرار على مستوى النظام أو إيقاف الصوت بها من الخلفية دون تدخل النظام.',style:TextStyle(fontSize:12,color:Colors.black54,height:1.5)),
       ]))),
     ]);
   }
