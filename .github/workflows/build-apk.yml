@@ -276,42 +276,28 @@ jobs:
                   val todayIndex = (0..6).firstOrNull { (data.getString("prayer_day_${it}_date_epoch", "-1")?.toLongOrNull() ?: -1L) == todayStart } ?: 0
 
                   keys.forEachIndexed { index, key ->
-                      val value = data.getString("prayer_day_${todayIndex}_${key}", null)
-                          ?: data.getString("prayer_${key}", "--:--")
+                      val value = if (todayIndex >= 0) {
+                          data.getString("prayer_day_${todayIndex}_${key}", null)
+                              ?: data.getString("prayer_${key}", "--:--")
+                      } else {
+                          "--:--"
+                      }
                       views.setTextViewText(viewIds[index], value)
                   }
 
-                  // Select the next prayer from the same local clock times shown in the widget.
-                  // Rebuild today's timestamps from the displayed values to avoid stale/day-offset epoch data.
+                  // Select the next prayer from the current day and following cached days.
+                  // Previously the widget displayed todayIndex but counted down from cached day 0.
                   var nextIndex = -1
                   var nextTime = Long.MAX_VALUE
-                  for (day in 0..6) {
-                      for (index in keys.indices) {
-                          val timestamp = if (day == 0) {
-                              val display = data.getString("prayer_day_0_${keys[index]}", null)
-                                  ?: data.getString("prayer_${keys[index]}", null)
-                              val match = Regex("""(\\d{1,2}):(\\d{2})\\s*([صم])""").find(display ?: "")
-                              if (match != null) {
-                                  var hour = match.groupValues[1].toInt()
-                                  val minute = match.groupValues[2].toInt()
-                                  val isPm = match.groupValues[3] == "م"
-                                  if (isPm && hour < 12) hour += 12
-                                  if (!isPm && hour == 12) hour = 0
-                                  Calendar.getInstance().apply {
-                                      set(Calendar.HOUR_OF_DAY, hour)
-                                      set(Calendar.MINUTE, minute)
-                                      set(Calendar.SECOND, 0)
-                                      set(Calendar.MILLISECOND, 0)
-                                  }.timeInMillis
-                              } else {
-                                  (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
+                  if (todayIndex >= 0) {
+                      for (day in todayIndex..6) {
+                          for (index in keys.indices) {
+                              val timestamp = data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")
+                                  ?.toLongOrNull() ?: 0L
+                              if (timestamp > now && timestamp < nextTime) {
+                                  nextIndex = index
+                                  nextTime = timestamp
                               }
-                          } else {
-                              (data.getString("prayer_day_${day}_${keys[index]}_epoch", "0")?.toLongOrNull() ?: 0L)
-                          }
-                          if (timestamp > now && timestamp < nextTime) {
-                              nextIndex = index
-                              nextTime = timestamp
                           }
                       }
                   }
