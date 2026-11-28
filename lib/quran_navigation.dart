@@ -21,6 +21,13 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
   int surah = 1;
   int ayah = 1;
   int juz = 1;
+  late final TextEditingController _ayahController;
+  late final TextEditingController _juzController;
+
+  @override
+  void initState() { super.initState(); _ayahController = TextEditingController(text: '1'); _juzController = TextEditingController(text: '1'); }
+  @override
+  void dispose() { _ayahController.dispose(); _juzController.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) => Card(
@@ -41,16 +48,21 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
             value: surah, isExpanded: true,
             decoration: const InputDecoration(labelText: 'السورة'),
             items: List.generate(114, (i) => DropdownMenuItem(value: i + 1, child: Text(quranSurahNames[i]))),
-            onChanged: (v) => setState(() { surah = v ?? 1; ayah = 1; }),
+            onChanged: (v) => setState(() { surah = v ?? 1; ayah = 1; _ayahController.text = '1'; }),
           )),
           const SizedBox(width: 8),
           Expanded(child: DropdownButtonFormField<int>(
             value: ayah, isExpanded: true,
             decoration: const InputDecoration(labelText: 'رقم الآية'),
             items: List.generate(quranAyahCounts[surah - 1], (i) => DropdownMenuItem(value: i + 1, child: Text((i + 1).toString()))),
-            onChanged: (v) => setState(() => ayah = v ?? 1),
+            onChanged: (v) => setState(() { ayah = v ?? 1; _ayahController.text = ayah.toString(); }),
           )),
         ]),
+        const SizedBox(height: 6),
+        TextField(controller: _ayahController, keyboardType: TextInputType.number,
+          decoration: InputDecoration(labelText: 'أو اكتب رقم الآية (1-${quranAyahCounts[surah - 1]})'),
+          onChanged: (value) { final n = int.tryParse(value); if (n != null && n >= 1 && n <= quranAyahCounts[surah - 1]) setState(() => ayah = n); },
+        ),
         const SizedBox(height: 6),
         Align(alignment: Alignment.centerLeft, child: FilledButton.icon(
           onPressed: () => widget.onOpen(surah, ayah),
@@ -64,7 +76,12 @@ class _QuranLocationPickerState extends State<QuranLocationPicker> {
             value: juz, isExpanded: true,
             decoration: const InputDecoration(labelText: 'رقم الجزء'),
             items: List.generate(30, (i) => DropdownMenuItem(value: i + 1, child: Text('الجزء ${i + 1}'))),
-            onChanged: (v) => setState(() => juz = v ?? 1),
+            onChanged: (v) => setState(() { juz = v ?? 1; _juzController.text = juz.toString(); }),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: TextField(controller: _juzController, keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'أو اكتب رقم الجزء (1-30)'),
+            onChanged: (value) { final n = int.tryParse(value); if (n != null && n >= 1 && n <= 30) setState(() => juz = n); },
           )),
           const SizedBox(width: 8),
           FilledButton.icon(

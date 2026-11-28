@@ -313,6 +313,7 @@ class _PrayerPageState extends State<PrayerPage> {
   String? error;
   bool loading=false,alerts=false;
   int iqama=10;
+  final TextEditingController iqamaController=TextEditingController(text:'10');
   String? audioPath;
   String? iqamaAudioPath;
   double adhanVolume=1.0;
@@ -330,6 +331,7 @@ class _PrayerPageState extends State<PrayerPage> {
       methodKey=prefs.getString('calculation_method')??'egyptian';
       alerts=prefs.getBool('prayer_alerts')??false;
       iqama=prefs.getInt('iqama_delay')??10;
+      iqamaController.text=iqama.toString();
       adhanVolume=(prefs.getDouble('adhan_volume')??1.0).clamp(0.0,1.0).toDouble();
       final savedAudio=prefs.getString('adhan_audio_path');
       final isOldHaramAdhan = savedAudio != null && savedAudio.endsWith('adhan_ali_ibn_ahmad_mala.mp3');
@@ -549,6 +551,7 @@ class _PrayerPageState extends State<PrayerPage> {
   Future<void> _setIqama(int? v) async {
     if(v==null)return;
     setState(()=>iqama=v);
+    iqamaController.text=v.toString();
     final prefs=await SharedPreferences.getInstance();
     await prefs.setInt('iqama_delay',v);
     if(alerts)await _refresh();
@@ -667,7 +670,7 @@ class _PrayerPageState extends State<PrayerPage> {
     _msg('تم إلغاء صوت الإقامة المخصص.');
   }
   void _msg(String s){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));}
-  @override void dispose(){audioPlayer.dispose();super.dispose();}
+  @override void dispose(){iqamaController.dispose();audioPlayer.dispose();super.dispose();}
 
   @override Widget build(BuildContext context){
     final today=DateTime.now();
@@ -686,6 +689,7 @@ class _PrayerPageState extends State<PrayerPage> {
       'singapore':'سنغافورة',
       'turkey':'الشؤون الدينية التركية',
     };
+    final iqamaOptions=<int>{5,10,15,20,25,30,iqama}.toList()..sort();
     return ListView(padding:const EdgeInsets.all(16),children:[
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('الموقع وطريقة حساب المواقيت',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
@@ -726,7 +730,10 @@ class _PrayerPageState extends State<PrayerPage> {
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('تنبيهات الصلاة',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
         SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('تفعيل التنبيهات'),subtitle:const Text('قبل الصلاة بـ10 دقائق، وعند دخول الوقت، ثم الإقامة'),value:alerts,onChanged:_toggle),
-        Row(children:[const Expanded(child:Text('الإقامة بعد الأذان')),DropdownButton<int>(value:iqama,items:[5,10,15,20,25,30].map((v)=>DropdownMenuItem(value:v,child:Text(v.toString()+' دقائق'))).toList(),onChanged:_setIqama)]),
+        Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[const Expanded(child:Text('الإقامة بعد الأذان')),DropdownButton<int>(value:iqama,items:iqamaOptions.map((v)=>DropdownMenuItem(value:v,child:Text(v.toString()+' دقائق'))).toList(),onChanged:_setIqama)]),
+          TextField(controller:iqamaController,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أو اكتب مدة الإقامة بالدقائق (1-180)'),onChanged:(value){final n=int.tryParse(value);if(n!=null&&n>=1&&n<=180)setState(()=>iqama=n);},onSubmitted:(value)=>_setIqama(int.tryParse(value))),
+        ]),
       ]))),
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('صوت الأذان',style:TextStyle(fontWeight:FontWeight.bold,fontSize:19,color:_green)),

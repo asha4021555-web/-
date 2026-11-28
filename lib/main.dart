@@ -290,7 +290,7 @@ class _HomePageState extends State<HomePage> {
         Padding(
           padding:const EdgeInsets.only(bottom:10,top:2),
           child:Column(mainAxisSize:MainAxisSize.min,children:[
-            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:132,height:132,fit:BoxFit.contain,filterQuality:FilterQuality.high,isAntiAlias:true)),
+            ClipRRect(borderRadius:BorderRadius.circular(18),child:Image.asset('assets/noor_icon.jpg',width:150,height:150,fit:BoxFit.contain,filterQuality:FilterQuality.high,isAntiAlias:true)),
             const SizedBox(height:5),
             const Text('نور الإسلام',style:TextStyle(color:green,fontWeight:FontWeight.bold,fontSize:13)),
           ]),
@@ -1387,6 +1387,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                       onPressed: () async {
                         var selectedSurah = firstAyah['surah'] as int;
                         var selectedAyah = firstAyah['number'] as int;
+                        final ayahController = TextEditingController(text: selectedAyah.toString());
                         await showDialog<void>(
                           context: context,
                           builder: (dialogContext) => StatefulBuilder(
@@ -1414,7 +1415,15 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                                     decoration: const InputDecoration(labelText: 'رقم الآية'),
                                     items: List.generate(quranAyahCounts[selectedSurah - 1], (i) =>
                                       DropdownMenuItem(value: i + 1, child: Text('${i + 1}'))),
-                                    onChanged: (value) => refreshDialog(() => selectedAyah = value ?? 1),
+                                    onChanged: (value) => refreshDialog(() {
+                                      selectedAyah = value ?? 1;
+                                      ayahController.text = selectedAyah.toString();
+                                    }),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: ayahController, keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(labelText: 'أو اكتب رقم الآية (1-${quranAyahCounts[selectedSurah - 1]})'),
+                                    onChanged: (value) { final n = int.tryParse(value); if (n != null && n >= 1 && n <= quranAyahCounts[selectedSurah - 1]) refreshDialog(() => selectedAyah = n); },
                                   ),
                                 ],
                               ),
@@ -1437,6 +1446,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                             ),
                           ),
                         );
+                        ayahController.dispose();
                       },
                       icon: const Icon(Icons.list_alt, color: green),
                     ),
