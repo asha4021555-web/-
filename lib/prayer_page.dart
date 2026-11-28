@@ -789,7 +789,7 @@ class _PrayerPageState extends State<PrayerPage> {
         for(final entry in const [('fajr','الفجر'),('dhuhr','الظهر'),('asr','العصر'),('maghrib','المغرب'),('isha','العشاء')])
           Padding(padding:const EdgeInsets.only(top:6),child:Row(children:[
             SizedBox(width:54,child:Text(entry.$2)),
-            DropdownButton<int>(value:iqamaOptions.contains(iqamaDelays[entry.$1])?iqamaDelays[entry.$1]:iqamaOptions.first,items:iqamaOptions.map((v)=>DropdownMenuItem(value:v,child:Text('$v د'))).toList(),onChanged:(v){if(v!=null)_setIqamaDelay(entry.$1,v);}),
+            DropdownButton<int>(value:iqamaDelays[entry.$1],items:({0,1,2,3,5,10,15,20,30,iqamaDelays[entry.$1]!}.toList()..sort()).map((v)=>DropdownMenuItem(value:v,child:Text('$v د'))).toList(),onChanged:(v){if(v!=null)_setIqamaDelay(entry.$1,v);}),
             const SizedBox(width:8),
             Expanded(child:SizedBox(height:48,child:TextField(controller:iqamaControllers[entry.$1],keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'أو اكتب بالدقائق',isDense:true),onSubmitted:(v){final n=int.tryParse(v);if(n!=null)_setIqamaDelay(entry.$1,n);}))),
           ])),
