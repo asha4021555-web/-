@@ -447,27 +447,32 @@ class HijriOffsetSetting extends StatefulWidget {
 }
 class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
   int offset=0;
+  final TextEditingController _offsetController=TextEditingController(text:'0');
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async {final p=await SharedPreferences.getInstance();if(mounted)setState(()=>offset=p.getInt('hijri_offset')??0);}
+  Future<void> _load() async {final p=await SharedPreferences.getInstance();if(mounted)setState((){offset=p.getInt('hijri_offset')??0;_offsetController.text=offset.toString();});}
   Future<void> _set(int value) async {
+    final safe=value.clamp(-30,30);
     final p=await SharedPreferences.getInstance();
-    await p.setInt('hijri_offset',value);
-    await HomeWidget.saveWidgetData<int>('hijri_offset',value);
+    await p.setInt('hijri_offset',safe);
+    await HomeWidget.saveWidgetData<int>('hijri_offset',safe);
     await HomeWidget.updateWidget(androidName:'PrayerTimesWidgetProvider');
     if(!mounted)return;
-    setState(()=>offset=value);
+    setState(()=>offset=safe);
+    _offsetController.text=safe.toString();
     hijriOffsetChanged.value++;
   }
+  @override void dispose(){_offsetController.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     const Text('ضبط التاريخ الهجري',style:TextStyle(fontWeight:FontWeight.bold,color:green,fontSize:17)),
-    const Text('لو إعلان الهلال في مصر مختلف عن التقويم الحسابي، قدّم أو أخّر يومًا.',style:TextStyle(fontSize:12,color:Colors.black54)),
+    const Text('قدّم أو أخّر التاريخ الهجري حسب إعلان الهلال، من -30 إلى +30 يومًا.',style:TextStyle(fontSize:12,color:Colors.black54)),
     Row(children:[
-      Expanded(child:Text(offset==0?'بدون تعديل':offset>0?'مقدّم يومًا':'مؤخّر يومًا')),
-      IconButton(onPressed:offset>-1?()=>_set(-1):null,icon:const Icon(Icons.remove_circle_outline)),
-      Text(offset>0?'+1':offset.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
-      IconButton(onPressed:offset<1?()=>_set(1):null,icon:const Icon(Icons.add_circle_outline)),
+      Expanded(child:Text(offset==0?'بدون تعديل':offset>0?'مقدّم ${offset} يومًا':'مؤخّر ${offset.abs()} يومًا')),
+      IconButton(onPressed:offset>-30?()=>_set(offset-1):null,icon:const Icon(Icons.remove_circle_outline)),
+      Text(offset>0?'+$offset':offset.toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
+      IconButton(onPressed:offset<30?()=>_set(offset+1):null,icon:const Icon(Icons.add_circle_outline)),
       TextButton(onPressed:()=>_set(0),child:const Text('إعادة')),
     ]),
+    TextField(controller:_offsetController,keyboardType:const TextInputType.numberWithOptions(signed:true),decoration:const InputDecoration(labelText:'أو اكتب عدد الأيام (-30 إلى 30)'),onChanged:(value){final n=int.tryParse(value);if(n!=null&&n>=-30&&n<=30)setState(()=>offset=n);},onSubmitted:(value)=>_set(int.tryParse(value)??0)),
   ])));
 }
 class SectionPage extends StatelessWidget{final int index;const SectionPage({super.key,required this.index});@override Widget build(BuildContext c)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(titles[index]),backgroundColor:green,foregroundColor:Colors.white,centerTitle:true,actions:[IconButton(tooltip:'بحث في كل التطبيق',icon:const Icon(Icons.search),onPressed:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Scaffold(appBar:AppBar(title:Text('بحث شامل'),backgroundColor:green,foregroundColor:Colors.white),body:GlobalSearchPage()))))]),body:switch(index){0=>const QuranPage(),1=>const DhikrPage(after:false),2=>const DhikrPage(after:true),3=>const EntriesPage(items:duas),4=>const HadithLibraryPage(),5=>const StoriesPage(),6=>const NamesPage(),7=>const TasbeehPage(),8=>const PrayerPage(),9=>const QiblaPage(),10=>const TafsirPage(initialSource:'saadi'),11=>const DreamsPage(),12=>const TafsirPage(initialSource:'muyassar'),13=>const LiveChannelsPage(),14=>const AbdulbasitMuallimPage(),15=>const AdhkarLibraryPage(),16=>const RuqyahPage(),_=>const DreamsPage()}));}
