@@ -746,7 +746,6 @@ class _PrayerPageState extends State<PrayerPage> {
       'singapore':'سنغافورة',
       'turkey':'الشؤون الدينية التركية',
     };
-    final iqamaOptions=<int>{0,1,2,3,5,10,15,20,30,iqamaDelays.values.reduce((a,b)=>a>b?a:b)}.where((v)=>v>=0&&v<=180).toList()..sort();
     return ListView(padding:const EdgeInsets.all(16),children:[
       Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         const Text('الموقع وطريقة حساب المواقيت',style:TextStyle(fontSize:19,fontWeight:FontWeight.bold,color:_green)),
