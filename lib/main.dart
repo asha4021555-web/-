@@ -451,7 +451,7 @@ class _HijriOffsetSettingState extends State<HijriOffsetSetting>{
   @override void initState(){super.initState();_load();}
   Future<void> _load() async {final p=await SharedPreferences.getInstance();if(mounted)setState((){offset=p.getInt('hijri_offset')??0;_offsetController.text=offset.toString();});}
   Future<void> _set(int value) async {
-    final safe=value.clamp(-30,30);
+    final safe=value.clamp(-30,30).toInt();
     final p=await SharedPreferences.getInstance();
     await p.setInt('hijri_offset',safe);
     await HomeWidget.saveWidgetData<int>('hijri_offset',safe);
