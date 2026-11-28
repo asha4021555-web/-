@@ -209,8 +209,10 @@ Future<void> _scheduleAlerts(Coordinates c, Map<String,int> iqamaDelays, String 
       if (autoSilent) {
         final silentAt = iqamaAt.subtract(Duration(minutes: silentBefore));
         final restoreAt = iqamaAt.add(Duration(minutes: silentAfter));
-        if (silentAt.isAfter(now)) silentStartTimes.add(silentAt.millisecondsSinceEpoch);
-        if (restoreAt.isAfter(now)) silentRestoreTimes.add(restoreAt.millisecondsSinceEpoch);
+        if (restoreAt.isAfter(now)) {
+          silentStartTimes.add((silentAt.isAfter(now) ? silentAt : now.add(const Duration(seconds: 3))).millisecondsSinceEpoch);
+          silentRestoreTimes.add(restoreAt.millisecondsSinceEpoch);
+        }
       }
       final events = [at.subtract(const Duration(minutes: 10)), at, iqamaAt];
       final labels = ['باقي 10 دقائق على صلاة ' + names[i], 'حان الآن وقت صلاة ' + names[i], 'موعد الإقامة لصلاة ' + names[i]];
@@ -551,7 +553,7 @@ class _PrayerPageState extends State<PrayerPage> {
     if(value){
       try{await _refresh();_msg('تم ضبط التنبيهات للأيام السبعة القادمة.');}
       catch(e){setState(()=>alerts=false);_msg('تعذر ضبط التنبيهات: '+e.toString());}
-    }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});await _adhanChannel.invokeMethod('stopPlayback').catchError((_) {});_msg('تم إيقاف التنبيهات والأذان الجاري.');}
+    }else{await _notifier.cancelAll();await _adhanChannel.invokeMethod('cancelAdhan').catchError((_) {});await _adhanChannel.invokeMethod('stopPlayback').catchError((_) {});await _adhanChannel.invokeMethod('scheduleSilence',{'starts':<int>[],'restores':<int>[]}).catchError((_) {});_msg('تم إيقاف التنبيهات والأذان الجاري، وإعادة وضع الصوت السابق إن كان الصامت التلقائي مفعّلًا.');}
   }
   Future<void> _setAdhanVolume(double value) async {
     final volume = value.clamp(0.0,1.0).toDouble();
