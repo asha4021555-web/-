@@ -1407,6 +1407,7 @@ class _MushafBookReaderState extends State<MushafBookReader> {
                                     onChanged: (value) => refreshDialog(() {
                                       selectedSurah = value ?? 1;
                                       selectedAyah = 1;
+                                      ayahController.text = '1';
                                     }),
                                   ),
                                   DropdownButtonFormField<int>(
