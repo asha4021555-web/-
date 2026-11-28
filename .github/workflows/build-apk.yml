@@ -320,8 +320,11 @@ jobs:
                       views.setTextViewTextSize(R.id.prayer_countdown_label, TypedValue.COMPLEX_UNIT_SP, if (expanded) 12f else 8f)
                       views.setTextViewTextSize(R.id.prayer_countdown, TypedValue.COMPLEX_UNIT_SP, if (expanded) 15f else 10f)
                       val remainingMillis = (nextTime - System.currentTimeMillis()).coerceAtLeast(0L)
-                      views.setChronometerCountDown(R.id.prayer_countdown, true)
+                      // Set the base/start state first, then enable countdown mode.
+                      // Some RemoteViews hosts apply chronometer actions in order; setting
+                      // countdown before setChronometer can leave it counting up from a future base.
                       views.setChronometer(R.id.prayer_countdown, SystemClock.elapsedRealtime() + remainingMillis, null, true)
+                      views.setChronometerCountDown(R.id.prayer_countdown, true)
                   } else {
                       views.setViewVisibility(R.id.prayer_countdown_label, View.GONE)
                       views.setViewVisibility(R.id.prayer_countdown, View.GONE)
