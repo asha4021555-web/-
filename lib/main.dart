@@ -22,7 +22,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   appThemeMode.value = prefs.getBool('dark_mode') == true ? ThemeMode.dark : ThemeMode.light;
-  final initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+
+  // Never prevent the app from starting if reading a home-widget launch URI
+  // fails or stalls. The widget can still open its target when the plugin
+  // successfully supplies the URI.
+  Uri? initialWidgetUri;
+  try {
+    initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget()
+        .timeout(const Duration(seconds: 1));
+  } catch (error) {
+    debugPrint('تعذر قراءة رابط الودجت عند بدء التشغيل: $error');
+  }
   runApp(NoorApp(initialWidgetUri: initialWidgetUri));
 }
 const green=Color(0xFF493326);
